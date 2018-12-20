@@ -204,9 +204,9 @@ process get_software_versions {
 
 
 /*
- * STEP 1 - FastQC
+ * STEP 1 - Generate QTLTools input files
  */
-process fastqc {
+process create_QTLTools_input {
     tag "$name"
     publishDir "${params.outdir}/fastqc", mode: 'copy',
         saveAs: {filename -> filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"}
@@ -219,19 +219,31 @@ process fastqc {
 
     script:
     """
-    fastqc -q $reads
+    Rscript array_data_to_QTLtools_input.R\
+     -g "../metadata/gene_metadata/HumanHT-12_V4_gene_metadata.txt.gz"\
+     -s "../metadata/cleaned/Fairfax_2014.tsv"\
+     -e "/gpfs/hpc/home/a72094/projects/RNAseq_pipeline/results/expression_matrices/HumanHT-12_V4/Fairfax_2014.tsv.gz"\
+     -v "/gpfs/hpchome/a72094/hpc/datasets/controlled_access/Fairfax_2014/genotypes/Michigan_GRCh37_1KGPhase3_061118/GRCh38/Fairfax_2014_GRCh38.variant_information.txt.gz"\
+     --qtlutils "../../eQTLUtils"\
+     -o "../processed/Fairfax_2014/qtltools/input/array/"\
+     -c 1000001\
+     -m 6
     """
 }
 
 
 
 /*
- * STEP 2 - MultiQC
+ * STEP 2 - Compres and index input bed file
  */
-process multiqc {
+process compress_bed {
     publishDir "${params.outdir}/MultiQC", mode: 'copy'
-
+    // 	threads: 1
+	// resources:
+	// 	mem = 100
     input:
+        // bed = "processed/{study}/qtltools/input/{annot_type}/{condition}.bed"
+
     file multiqc_config from ch_multiqc_config
     // TODO nf-core: Add in log files from your new processes for MultiQC to find!
     file ('fastqc/*') from fastqc_results.collect().ifEmpty([])
@@ -239,6 +251,8 @@ process multiqc {
     file workflow_summary from create_workflow_summary(summary)
 
     output:
+    	// 	bed = protected("processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz"),
+		// bed_index = protected("processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz.tbi")
     file "*multiqc_report.html" into multiqc_report
     file "*_data"
 
@@ -247,29 +261,280 @@ process multiqc {
     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
     // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
     """
-    multiqc -f $rtitle $rfilename --config $multiqc_config .
+    module load samtools-1.6
+    bgzip {input.bed} && tabix -p bed {output.bed}
     """
 }
 
 
 
 /*
- * STEP 3 - Output Description HTML
+ * STEP 3 - Extract samples from vcf
  */
-process output_documentation {
+process extract_samples {
     publishDir "${params.outdir}/Documentation", mode: 'copy'
-
+	// threads: 1
+	// resources:
+	// 	mem = 100
     input:
+        // samples = "processed/{study}/qtltools/input/{annot_type}/{condition}.sample_names.txt"
     file output_docs from ch_output_docs
 
     output:
+        // vcf = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz",
+		// vcf_index = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz.csi"
     file "results_description.html"
 
     script:
     """
-    markdown_to_html.r $output_docs results_description.html
+    module load bcftools-1.8
+    bcftools view -S {input.samples} {config[vcf_file]} -Oz -o {output.vcf}
+    bcftools index {output.vcf}
     """
 }
+
+/*
+ * STEP 4 - Extract variant information from VCF
+ */
+process extract_samples {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 1
+	// resources:
+	// 	mem = 100
+
+    input:
+        // vcf = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz",
+    file output_docs from ch_output_docs
+
+    output:
+        // var_info = "processed/{study}/qtltools/output/{annot_type}/final/{condition}.variant_information.txt.gz"
+    file "results_description.html"
+
+    script:
+    """
+    module load bcftools-1.8
+    bcftools view -S {input.samples} {config[vcf_file]} -Oz -o {output.vcf}
+    bcftools index {output.vcf}
+    """
+}
+
+
+/*
+ * STEP 5 - Perform PCA on the genotype and phenotype data
+ */
+process perform_pca {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 1
+	// resources:
+	// 	mem = 2000
+
+    input:
+        // bed = "processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz",
+		// bed_index = "processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz.tbi",
+		// vcf = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz",
+		// vcf_index = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz.csi"
+    file output_docs from ch_output_docs
+
+    output:
+        // covariates = "processed/{study}/qtltools/input/{annot_type}/{condition}.covariates.txt"
+    file "results_description.html"
+
+        // params:
+        // 	pheno_pca = "processed/{study}/qtltools/input/{annot_type}/{condition}.pheno",
+        // 	geno_pca = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.geno"
+
+    script:
+    """
+		QTLtools pca --bed {input.bed} --center --scale --out {params.pheno_pca}
+		QTLtools pca --vcf {input.vcf} --maf 0.05 --center --scale --distance 50000 --out {params.geno_pca}
+		head -n 7 {params.pheno_pca}.pca > {output.covariates}
+		set +o pipefail; tail -n+2 {params.geno_pca}.pca | head -n 3 >> {output.covariates}
+    """
+}
+
+
+/*
+ * STEP 6 - Run QTLtools in permutation mode
+ */
+process run_permutation {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 1
+	// resources:
+	// 	mem = 5000
+
+    input:
+		// bed = "processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz",
+		// bed_index = "processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz.tbi",
+		// covariates = "processed/{study}/qtltools/input/{annot_type}/{condition}.covariates.txt",
+		// vcf = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz"
+    file output_docs from ch_output_docs
+
+    output:
+        // temp("processed/{study}/qtltools/output/{annot_type}/batches/{condition}.permutation.batch.{batch}.{n_batches}.txt")
+    file "results_description.html"
+
+	// params:
+	// 	chunk = "{batch} {n_batches}"
+
+    script:
+    """
+    QTLtools cis --vcf {input.vcf} --bed {input.bed} --cov {input.covariates} --chunk {params.chunk} --out {output} --window {config[cis_window]} --permute 10000 --grp-best
+    """
+}
+
+
+/*
+ * STEP 7 - Merge all batches from QTLtools
+ */
+process merge_permutation_batches {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 1
+	// resources:
+	// 	mem = 100
+    input:
+        // expand("processed/{{study}}/qtltools/output/{{annot_type}}/batches/{{condition}}.permutation.batch.{batch}.{n_batches}.txt", 
+		// 	batch=[i for i in range(1, config["n_batches"] + 1)],
+		// 	n_batches = config["n_batches"])
+    file output_docs from ch_output_docs
+
+    output:
+        // "processed/{study}/qtltools/output/{annot_type}/{condition}.permuted.txt.gz"
+    file "results_description.html"
+
+    script:
+    """
+		module load samtools-1.6
+		cat {input} | bgzip > {output}
+    """
+}
+
+/*
+ * STEP 8 - Run QTLtools in nominal mode
+ */
+process run_nominal {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 1
+	// resources:
+	// 	mem = 5000
+    input:
+		// bed = "processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz",
+		// bed_index = "processed/{study}/qtltools/input/{annot_type}/{condition}.bed.gz.tbi",
+		// covariates = "processed/{study}/qtltools/input/{annot_type}/{condition}.covariates.txt",
+		// vcf = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz"
+    file output_docs from ch_output_docs
+
+    output:
+        // temp("processed/{study}/qtltools/output/{annot_type}/{condition}.nominal.txt.gz")
+    file "results_description.html"
+
+	// params:
+	// 	chunk = "{batch} {n_batches}"
+    script:
+    """
+		module load samtools-1.6
+		cat {input} | bgzip > {output}
+    """
+}
+
+/*
+ * STEP 9 - Merge all batches from QTLtools
+ */
+process merge_nominal_batches {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 1
+	// resources:
+	// 	mem = 100
+    input:
+		// 		expand("processed/{{study}}/qtltools/output/{{annot_type}}/nominal_batches/{{condition}}.nominal.batch.{batch}.{n_batches}.txt", 
+			// batch=[i for i in range(1, config["n_batches"] + 1)],
+			// n_batches = config["n_batches"])
+    file output_docs from ch_output_docs
+
+    output:
+        // temp("processed/{study}/qtltools/output/{annot_type}/{condition}.nominal.txt.gz")
+    file "results_description.html"
+
+    script:
+    """
+		module load samtools-1.6
+		cat {input} | bgzip > {output}
+    """
+}
+
+/*
+ * STEP 10 - Replace tabs 
+ */
+process replace_space_tabs {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 2
+	// resources:
+	// 	mem = 1000
+    input:
+		// "processed/{study}/qtltools/output/{annot_type}/{condition}.nominal.txt.gz"
+    file output_docs from ch_output_docs
+
+    output:
+        // "processed/{study}/qtltools/output/{annot_type}/tab/{condition}.nominal.txt.gz"
+    file "results_description.html"
+
+    script:
+    """
+    gzip -dc {input} | awk -v OFS='\\t' '{{$1=$1; print $0}}' | gzip > {output}
+    """
+}
+
+
+/*
+ * STEP 11 - Add SNP coordinates to QTLTools output file
+ */
+process sort_qtltools_output {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 10
+	// resources:
+	// 	mem = 12000
+    input:
+		// "processed/{study}/qtltools/output/{annot_type}/tab/{condition}.nominal.txt.gz"
+    file output_docs from ch_output_docs
+
+    output:
+        // protected("processed/{study}/qtltools/output/{annot_type}/final/{condition}.nominal.sorted.txt.gz")
+    file "results_description.html"
+
+	// params:
+	// 	chunk = "{batch} {n_batches}"
+    script:
+    """
+    	module load samtools-1.6
+		gzip -dc {input} | LANG=C sort -k9,9 -k10,10n -k11,11n -S11G --parallel=8 | bgzip > {output}
+    """
+}
+
+/*
+ * STEP 12 - Tabix-index QTLtools output files
+ */
+process index_qtltools_output {
+    publishDir "${params.outdir}/Documentation", mode: 'copy'
+	// threads: 1
+	// resources:
+	// 	mem = 1000
+    input:
+		// "processed/{study}/qtltools/output/{annot_type}/final/{condition}.nominal.sorted.txt.gz"
+    file output_docs from ch_output_docs
+
+    output:
+        // "processed/{study}/qtltools/output/{annot_type}/final/{condition}.nominal.sorted.txt.gz.tbi"
+    file "results_description.html"
+
+	// params:
+	// 	chunk = "{batch} {n_batches}"
+    script:
+    """
+		module load samtools-1.6
+		tabix -s9 -b10 -e11 -f {input}
+    """
+}
+
+
 
 
 
