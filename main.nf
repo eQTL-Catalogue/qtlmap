@@ -223,12 +223,10 @@ process create_QTLTools_input {
     input:
     file expression_matrix from expression_matrix_create_QTLTools_input
     file sample_metadata from sample_metadata_create_QTLTools_input
-    val conditoon from conditions_create_QTLTools_input
 
     output:
-    file "*${condition}.bed" into test_bed_channel
-    file "*${condition}.sample_names.txt" into test_samplenames_channel
-    //file "*_fastqc.{zip,html}" into fastqc_results
+    file "${params.quantification_method}/*.bed" into test_bed_channel
+    file "${params.quantification_method}/*.sample_names.txt" into test_samplenames_channel
 
     script:
     """
@@ -245,11 +243,9 @@ process create_QTLTools_input {
 
 }
 
-test_bed_channel.subscribe { println "Received: " + it.text }
-test_samplenames_channel.subscribe { println "Received: " + it.text }
 
-
-
+test_bed_channel.subscribe { println "Received: " + it }
+test_samplenames_channel.subscribe { println "Received: " + it }
 
 /*
  * Completion e-mail notification
