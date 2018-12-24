@@ -150,6 +150,7 @@ summary['Run Name']             = custom_runName ?: workflow.runName
 summary['Expression Matrix']    = params.expression_matrix
 summary['Gene Metadata']        = params.gene_metadata
 summary['Sample Metadata']      = params.sample_metadata
+summary['Genotype file']        = params.vcf_file
 summary['Variant Info']         = params.variant_info
 summary['Cis distance']         = params.cisdistance
 summary['Minimum Cis variants'] = params.mincisvariant
@@ -247,10 +248,9 @@ process create_QTLTools_input {
 /*
  * STEP 2 - Compres and index input bed file
  */ 
- // TODO: try to use each input repeater for permutations
 process compress_bed {
+    tag "${bed_file.baseName}"
     publishDir "${params.outdir}/compressed_bed", mode: 'copy'
-    echo true
 
     input:
     file bed_file from condition_beds.flatMap()
@@ -265,7 +265,28 @@ process compress_bed {
     """
 }
 
+/*
+ * STEP 3 - Extract samples from vcf
+ */
+process extract_samples {
+    tag "${sample_names.simpleName}"
+    publishDir "${params.outdir}/vcf", mode: 'copy'
 
+    input:
+    file sample_names from condition_samplenames.flatMap()
+
+    output:
+    file "${sample_names.simpleName}.vcf.gz" into vcfs_extract_variant_info, vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
+    file "${sample_names.simpleName}.vcf.gz.csi" into vcf_indexes_perform_pca
+
+    script:
+    """
+    bcftools view -S $sample_names ${params.vcf_file} -Oz -o ${sample_names.simpleName}.vcf.gz
+    bcftools index ${sample_names.simpleName}.vcf.gz
+    """
+}
+
+// TODO: try to use each input repeater for permutations
 
 /*
  * Completion e-mail notification
