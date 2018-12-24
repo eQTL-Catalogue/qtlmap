@@ -142,35 +142,37 @@ log.info """=======================================================
 nf-core/qtlmap v${workflow.manifest.version}"
 ======================================================="""
 def summary = [:]
-summary['Pipeline Name']  = 'nf-core/qtlmap'
-summary['Pipeline Version'] = workflow.manifest.version
-summary['Run Name']     = custom_runName ?: workflow.runName
+summary['Pipeline Name']        = 'nf-core/qtlmap'
+summary['Pipeline Version']     = workflow.manifest.version
+summary['Run Name']             = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
 
-summary['Expression Matrix'] = params.expression_matrix
-summary['Gene Metadata'] = params.gene_metadata
-summary['Sample Metadata'] = params.sample_metadata
-summary['Variant Info'] = params.variant_info
-summary['Max Memory']   = params.max_memory
-summary['Max CPUs']     = params.max_cpus
-summary['Max Time']     = params.max_time
-summary['Output dir']   = params.outdir
-summary['Working dir']  = workflow.workDir
-summary['Container Engine'] = workflow.containerEngine
+summary['Expression Matrix']    = params.expression_matrix
+summary['Gene Metadata']        = params.gene_metadata
+summary['Sample Metadata']      = params.sample_metadata
+summary['Variant Info']         = params.variant_info
+summary['Cis distance']         = params.cisdistance
+summary['Minimum Cis variants'] = params.mincisvariant
+summary['Max Memory']           = params.max_memory
+summary['Max CPUs']             = params.max_cpus
+summary['Max Time']             = params.max_time
+summary['Output dir']           = params.outdir
+summary['Working dir']          = workflow.workDir
+summary['Container Engine']     = workflow.containerEngine
 if(workflow.containerEngine) summary['Container'] = workflow.container
-summary['Current home']   = "$HOME"
-summary['Current user']   = "$USER"
-summary['Current path']   = "$PWD"
-summary['Working dir']    = workflow.workDir
-summary['Output dir']     = params.outdir
-summary['Script dir']     = workflow.projectDir
-summary['Config Profile'] = workflow.profile
+summary['Current home']         = "$HOME"
+summary['Current user']         = "$USER"
+summary['Current path']         = "$PWD"
+summary['Working dir']          = workflow.workDir
+summary['Output dir']           = params.outdir
+summary['Script dir']           = workflow.projectDir
+summary['Config Profile']       = workflow.profile
 if(workflow.profile == 'awsbatch'){
-   summary['AWS Region'] = params.awsregion
-   summary['AWS Queue'] = params.awsqueue
+   summary['AWS Region']        = params.awsregion
+   summary['AWS Queue']         = params.awsqueue
 }
 if(params.email) summary['E-mail Address'] = params.email
-log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
+log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
 
@@ -217,7 +219,7 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
  * STEP 1 - Generate QTLTools input files
  */
 process create_QTLTools_input {
-    tag "$name"
+    tag "${expression_matrix.baseName}"
     publishDir "${params.outdir}/qtl_input", mode: 'copy'
 
     input:
@@ -225,8 +227,8 @@ process create_QTLTools_input {
     file sample_metadata from sample_metadata_create_QTLTools_input
 
     output:
-    file "${params.quantification_method}/*.bed" into test_bed_channel
-    file "${params.quantification_method}/*.sample_names.txt" into test_samplenames_channel
+    file "${params.quantification_method}/*.bed" into condition_beds
+    file "${params.quantification_method}/*.sample_names.txt" into condition_samplenames 
 
     script:
     """
@@ -240,12 +242,30 @@ process create_QTLTools_input {
         -c ${params.cisdistance} \\
         -m ${params.mincisvariant}
     """
+}
 
+/*
+ * STEP 2 - Compres and index input bed file
+ */ 
+ // TODO: try to use each input repeater for permutations
+process compress_bed {
+    publishDir "${params.outdir}/compressed_bed", mode: 'copy'
+    echo true
+
+    input:
+    file bed_file from condition_beds.flatMap()
+
+    output:
+    file "${bed_file}.gz" into compressed_beds_perform_pca, compressed_beds_run_nominal, compressed_beds_run_permutation
+    file "${bed_file}.gz.tbi" into compressed_bed_indexes_perform_pca, compressed_bed_indexes_run_nominal, compressed_bed_indexes_run_permutation
+
+    script:
+    """
+    bgzip $bed_file && tabix -p bed ${bed_file}.gz
+    """
 }
 
 
-test_bed_channel.subscribe { println "Received: " + it }
-test_samplenames_channel.subscribe { println "Received: " + it }
 
 /*
  * Completion e-mail notification
