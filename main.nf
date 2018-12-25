@@ -286,6 +286,33 @@ process extract_samples {
     """
 }
 
+/*
+ * STEP 4 - Extract variant information from VCF
+ */
+process extract_variant_info {
+    tag "${vcf.simpleName}"
+    publishDir "${params.outdir}/final", mode: 'copy'
+
+    input:
+    file vcf from vcfs_extract_variant_info
+        // vcf = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz",
+    
+    output:
+    file "${vcf.simpleName}.variant_information.txt.gz"
+        // var_info = "processed/{study}/qtltools/output/{annot_type}/final/{condition}.variant_information.txt.gz"
+
+    script:
+    if (params.is_imputed) {
+        """
+        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\t%R2\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
+        """
+    } else {
+        """
+        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
+        """
+    }
+}
+
 // TODO: try to use each input repeater for permutations
 
 /*
