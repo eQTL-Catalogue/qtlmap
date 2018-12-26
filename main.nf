@@ -227,9 +227,9 @@ process create_QTLTools_input {
     file expression_matrix from expression_matrix_create_QTLTools_input
     file sample_metadata from sample_metadata_create_QTLTools_input
 
-    output:
-    file "${params.quantification_method}/*.bed" into condition_beds
-    file "${params.quantification_method}/*.sample_names.txt" into condition_samplenames 
+    output: // set can be used to pass condition val and file as tuple to the channel 
+    file "${params.quantification_method}/*.bed" into condition_beds mode flatten
+    file "${params.quantification_method}/*.sample_names.txt" into condition_samplenames mode flatten
 
     script:
     """
@@ -253,7 +253,7 @@ process compress_bed {
     publishDir "${params.outdir}/compressed_bed", mode: 'copy'
 
     input:
-    file bed_file from condition_beds.flatMap()
+    file bed_file from condition_beds
 
     output:
     file "${bed_file}.gz" into compressed_beds_perform_pca, compressed_beds_run_nominal, compressed_beds_run_permutation
@@ -273,7 +273,7 @@ process extract_samples {
     publishDir "${params.outdir}/vcf", mode: 'copy'
 
     input:
-    file sample_names from condition_samplenames.flatMap()
+    file sample_names from condition_samplenames
 
     output:
     file "${sample_names.simpleName}.vcf.gz" into vcfs_extract_variant_info, vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
@@ -295,11 +295,9 @@ process extract_variant_info {
 
     input:
     file vcf from vcfs_extract_variant_info
-        // vcf = "processed/{study}/qtltools/input/{annot_type}/vcf/{condition}.vcf.gz",
     
     output:
     file "${vcf.simpleName}.variant_information.txt.gz"
-        // var_info = "processed/{study}/qtltools/output/{annot_type}/final/{condition}.variant_information.txt.gz"
 
     script:
     if (params.is_imputed) {
@@ -311,6 +309,34 @@ process extract_variant_info {
         set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
         """
     }
+}
+
+
+/*
+ * STEP 5 - Perform PCA on the genotype and phenotype data
+ */
+process perform_pca {
+    tag "${bed.simpleName}"
+    publishDir "${params.outdir}/PCA", mode: 'copy'
+
+    input:
+    file bed from compressed_beds_perform_pca
+    file "${bed}.tbi" from compressed_bed_indexes_perform_pca
+    file vcf name "${bed.simpleName}.vcf.gz" from vcfs_perform_pca
+    file "${bed.simpleName}.vcf.gz.csi" from vcf_indexes_perform_pca
+
+    output:
+    file "${bed.simpleName}.pheno.pca*"
+    file "${bed.simpleName}.geno.pca*"
+    file "${bed.simpleName}.covariates.txt" into covariates_run_nominal, covariates_run_permutation
+
+    script:
+    """
+		QTLtools pca --bed $bed --center --scale --out ${bed.simpleName}.pheno
+		QTLtools pca --vcf $vcf --maf 0.05 --center --scale --distance 50000 --out ${bed.simpleName}.geno
+		head -n 7 ${bed.simpleName}.pheno.pca > ${bed.simpleName}.covariates.txt
+		set +o pipefail; tail -n+2 ${bed.simpleName}.pheno.pca | head -n 3 >> ${bed.simpleName}.covariates.txt
+    """
 }
 
 // TODO: try to use each input repeater for permutations
