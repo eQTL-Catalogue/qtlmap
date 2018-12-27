@@ -347,7 +347,7 @@ process run_permutation {
     publishDir "${params.outdir}/temp_batches", mode: 'copy'
     
     input:
-    each batch_index from 1..{params.n_batches}
+    each batch_index from 1..params.n_batches
     file bed from compressed_beds_run_permutation
     file "${bed}.tbi" from compressed_bed_indexes_run_permutation
     file vcf name "${bed.simpleName}.vcf.gz" from vcfs_run_permutation
@@ -355,7 +355,7 @@ process run_permutation {
     file covariate name "${bed.simpleName}.covariates.txt" from covariates_run_permutation
 
     output:
-    set val(bed.simpleName), file "${bed.simpleName}.permutation.batch.${batch_index}.${params.n_batches}.txt" into batch_files_merge_permutation_batches
+    set val(bed.simpleName), file("${bed.simpleName}.permutation.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_permutation_batches
 
     script:
     """
@@ -366,27 +366,22 @@ process run_permutation {
 // /*
 //  * STEP 7 - Merge permutation batches from QTLtools
 //  */
-// process merge_permutation_batches {
-//     publishDir "${params.outdir}/Permutation_merged", mode: 'copy'
-// 	// threads: 1
-// 	// resources:
-// 	// 	mem = 100
-//     input:
-//         // expand("processed/{{study}}/qtltools/output/{{annot_type}}/batches/{{condition}}.permutation.batch.{batch}.{n_batches}.txt", 
-// 		// 	batch=[i for i in range(1, config["n_batches"] + 1)],
-// 		// 	n_batches = config["n_batches"])
-//     file output_docs from ch_output_docs
+process merge_permutation_batches {
+    tag "${condition}"
+    publishDir "${params.outdir}/Permutation_merged", mode: 'copy'
 
-//     output:
-//         // "processed/{study}/qtltools/output/{annot_type}/{condition}.permuted.txt.gz"
-//     file "results_description.html"
+    input:
+    set condition, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
 
-//     script:
-//     """
-// 		module load samtools-1.6
-// 		cat {input} | bgzip > {output}
-//     """
-// }
+    output:
+    file "${condition}.permuted.txt.gz"
+
+    script:
+    """
+    cat ${batch_file_names.join(' ')} | bgzip > ${condition}.permuted.txt.gz
+    """
+}
+
 // TODO: try to use each input repeater for permutations
 
 /*
