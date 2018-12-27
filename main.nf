@@ -277,7 +277,7 @@ process extract_samples {
 
     output:
     file "${sample_names.simpleName}.vcf.gz" into vcfs_extract_variant_info, vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
-    file "${sample_names.simpleName}.vcf.gz.csi" into vcf_indexes_perform_pca
+    file "${sample_names.simpleName}.vcf.gz.csi" into vcf_indexes_perform_pca, vcf_indexes_run_permutation
 
     script:
     """
@@ -339,6 +339,54 @@ process perform_pca {
     """
 }
 
+/*
+ * STEP 6 - Run QTLtools in permutation mode
+ */
+process run_permutation {
+    tag "${bed.simpleName} - ${batch_index}/${params.n_batches}"
+    publishDir "${params.outdir}/temp_batches", mode: 'copy'
+    
+    input:
+    each batch_index from 1..{params.n_batches}
+    file bed from compressed_beds_run_permutation
+    file "${bed}.tbi" from compressed_bed_indexes_run_permutation
+    file vcf name "${bed.simpleName}.vcf.gz" from vcfs_run_permutation
+    file "${bed.simpleName}.vcf.gz.csi" from vcf_indexes_run_permutation
+    file covariate name "${bed.simpleName}.covariates.txt" from covariates_run_permutation
+
+    output:
+    set val(bed.simpleName), file "${bed.simpleName}.permutation.batch.${batch_index}.${params.n_batches}.txt" into batch_files_merge_permutation_batches
+
+    script:
+    """
+    QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${bed.simpleName}.permutation.batch.${batch_index}.${params.n_batches}.txt --window ${params.cisdistance} --permute 10000 --grp-best
+    """
+}
+
+// /*
+//  * STEP 7 - Merge permutation batches from QTLtools
+//  */
+// process merge_permutation_batches {
+//     publishDir "${params.outdir}/Permutation_merged", mode: 'copy'
+// 	// threads: 1
+// 	// resources:
+// 	// 	mem = 100
+//     input:
+//         // expand("processed/{{study}}/qtltools/output/{{annot_type}}/batches/{{condition}}.permutation.batch.{batch}.{n_batches}.txt", 
+// 		// 	batch=[i for i in range(1, config["n_batches"] + 1)],
+// 		// 	n_batches = config["n_batches"])
+//     file output_docs from ch_output_docs
+
+//     output:
+//         // "processed/{study}/qtltools/output/{annot_type}/{condition}.permuted.txt.gz"
+//     file "results_description.html"
+
+//     script:
+//     """
+// 		module load samtools-1.6
+// 		cat {input} | bgzip > {output}
+//     """
+// }
 // TODO: try to use each input repeater for permutations
 
 /*
