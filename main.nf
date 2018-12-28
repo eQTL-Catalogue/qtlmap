@@ -277,7 +277,7 @@ process extract_samples {
 
     output:
     file "${sample_names.simpleName}.vcf.gz" into vcfs_extract_variant_info, vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
-    file "${sample_names.simpleName}.vcf.gz.csi" into vcf_indexes_perform_pca, vcf_indexes_run_permutation
+    file "${sample_names.simpleName}.vcf.gz.csi" into vcf_indexes_perform_pca, vcf_indexes_run_permutation, vcf_indexes_run_nominal
 
     script:
     """
@@ -379,6 +379,108 @@ process merge_permutation_batches {
     script:
     """
     cat ${batch_file_names.join(' ')} | bgzip > ${condition}.permuted.txt.gz
+    """
+}
+
+
+/*
+ * STEP 8 - Run QTLtools in nominal mode
+ */
+process run_nominal {
+    tag "${bed.simpleName} - ${batch_index}/${params.n_batches}"
+    publishDir "${params.outdir}/temp_batches", mode: 'copy'
+    
+    input:
+    each batch_index from 1..params.n_batches
+    file bed from compressed_beds_run_nominal
+    file "${bed}.tbi" from compressed_bed_indexes_run_nominal
+    file vcf name "${bed.simpleName}.vcf.gz" from vcfs_run_nominal
+    file "${bed.simpleName}.vcf.gz.csi" from vcf_indexes_run_nominal
+    file covariate name "${bed.simpleName}.covariates.txt" from covariates_run_nominal
+
+    output:
+    set val(bed.simpleName), file("${bed.simpleName}.nominal.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_nominal_batches
+
+    script:
+    """
+	QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${bed.simpleName}.nominal.batch.${batch_index}.${params.n_batches}.txt --window ${params.nominal_cis_window} --nominal 1
+    """
+}
+
+/*
+ * STEP 9 - Merge all batches from QTLtools
+ */
+process merge_nominal_batches {
+    tag "${condition}"
+    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+
+    input:
+    set condition, batch_file_names from batch_files_merge_nominal_batches.groupTuple(size: params.n_batches, sort: true)  
+
+    output:
+    file "${condition}.nominal.txt.gz" into nominal_merged_files_replace_space_tabs
+
+    script:
+    """
+    cat ${batch_file_names.join(' ')} | bgzip > ${condition}.nominal.txt.gz
+    """
+}
+
+/*
+ * STEP 10 - Replace spaces with tabs 
+ */
+process replace_space_tabs {
+    tag "${condition}"
+    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+	
+    input:
+    file nominal_merged from nominal_merged_files_replace_space_tabs
+
+    output:
+    file "${nominal_merged.simpleName}.nominal.tab.txt.gz" into nominal_merged_tab_sort_qtltools_output
+    
+    script:
+    """
+    gzip -dc $nominal_merged | awk -v OFS='\\t' '{{$1=$1; print $0}}' | gzip > ${nominal_merged.simpleName}.nominal.tab.txt.gz
+    """
+}
+
+/*
+ * STEP 11 - Add SNP coordinates to QTLTools output file
+ */
+process sort_qtltools_output {
+    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+
+    input:
+    file nominal_merged from nominal_merged_tab_sort_qtltools_output
+		// "processed/{study}/qtltools/output/{annot_type}/tab/{condition}.nominal.txt.gz"
+
+    output:
+    file "${nominal_merged.simpleName}.nominal.sorted.txt.gz" into sorted_merged_nominal_index_qtltools_output
+        // protected("processed/{study}/qtltools/output/{annot_type}/final/{condition}.nominal.sorted.txt.gz")
+
+    script:
+    """
+    gzip -dc $nominal_merged | LANG=C sort -k9,9 -k10,10n -k11,11n -S11G --parallel=8 | bgzip > ${nominal_merged.simpleName}.nominal.sorted.txt.gz
+    """
+}
+
+/*
+ * STEP 12 - Tabix-index QTLtools output files
+ */
+process index_qtltools_output {
+    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+
+    input:
+    file sorted_merged_nominal from sorted_merged_nominal_index_qtltools_output
+
+    output:
+    file "${sorted_merged_nominal.simpleName}.nominal.sorted.txt.gz.tbi"
+        // "processed/{study}/qtltools/output/{annot_type}/final/{condition}.nominal.sorted.txt.gz.tbi"
+
+    script:
+    """
+    tabix -s9 -b10 -e11 -f $sorted_merged_nominal
     """
 }
 
