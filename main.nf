@@ -332,10 +332,10 @@ process perform_pca {
 
     script:
     """
-		QTLtools pca --bed $bed --center --scale --out ${bed.simpleName}.pheno
-		QTLtools pca --vcf $vcf --maf 0.05 --center --scale --distance 50000 --out ${bed.simpleName}.geno
-		head -n 7 ${bed.simpleName}.pheno.pca > ${bed.simpleName}.covariates.txt
-		set +o pipefail; tail -n+2 ${bed.simpleName}.pheno.pca | head -n 3 >> ${bed.simpleName}.covariates.txt
+    QTLtools pca --bed $bed --center --scale --out ${bed.simpleName}.pheno
+    QTLtools pca --vcf $vcf --maf 0.05 --center --scale --distance 50000 --out ${bed.simpleName}.geno
+    head -n 7 ${bed.simpleName}.pheno.pca > ${bed.simpleName}.covariates.txt
+    set +o pipefail; tail -n+2 ${bed.simpleName}.pheno.pca | head -n 3 >> ${bed.simpleName}.covariates.txt
     """
 }
 
@@ -363,9 +363,9 @@ process run_permutation {
     """
 }
 
-// /*
-//  * STEP 7 - Merge permutation batches from QTLtools
-//  */
+/*
+ * STEP 7 - Merge permutation batches from QTLtools
+ */
 process merge_permutation_batches {
     tag "${condition}"
     publishDir "${params.outdir}/Permutation_merged", mode: 'copy'
@@ -408,7 +408,7 @@ process run_nominal {
 }
 
 /*
- * STEP 9 - Merge all batches from QTLtools
+ * STEP 9 - Merge nominal batches from QTLtools
  */
 process merge_nominal_batches {
     tag "${condition}"
@@ -441,7 +441,7 @@ process replace_space_tabs {
     
     script:
     """
-    gzip -dc $nominal_merged | awk -v OFS='\\t' '{{$1=$1; print $0}}' | gzip > ${nominal_merged.simpleName}.nominal.tab.txt.gz
+    gzip -dc $nominal_merged | awk -v OFS='\\t' '{{\$1=\$1; print \$0}}' | gzip > ${nominal_merged.simpleName}.nominal.tab.txt.gz
     """
 }
 
@@ -453,11 +453,9 @@ process sort_qtltools_output {
 
     input:
     file nominal_merged from nominal_merged_tab_sort_qtltools_output
-		// "processed/{study}/qtltools/output/{annot_type}/tab/{condition}.nominal.txt.gz"
 
     output:
     file "${nominal_merged.simpleName}.nominal.sorted.txt.gz" into sorted_merged_nominal_index_qtltools_output
-        // protected("processed/{study}/qtltools/output/{annot_type}/final/{condition}.nominal.sorted.txt.gz")
 
     script:
     """
@@ -476,7 +474,6 @@ process index_qtltools_output {
 
     output:
     file "${sorted_merged_nominal.simpleName}.nominal.sorted.txt.gz.tbi"
-        // "processed/{study}/qtltools/output/{annot_type}/final/{condition}.nominal.sorted.txt.gz.tbi"
 
     script:
     """
