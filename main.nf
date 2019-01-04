@@ -148,7 +148,7 @@ summary['Gene Metadata']        = params.gene_metadata
 summary['Sample Metadata']      = params.sample_metadata
 summary['Genotype file']        = params.vcf_file
 summary['Variant Info']         = params.variant_info
-summary['Cis distance']         = params.cisdistance
+summary['Cis window']         = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Max Memory']           = params.max_memory
 summary['Max CPUs']             = params.max_cpus
@@ -236,7 +236,7 @@ process create_QTLTools_input {
         -v "${params.variant_info}" \\
         --qtlutils "${params.eqtl_utils}" \\
         -o "${params.quantification_method}" \\
-        -c ${params.cisdistance} \\
+        -c ${params.cis_window} \\
         -m ${params.mincisvariant}
     """
 }
@@ -356,7 +356,7 @@ process run_permutation {
 
     script:
     """
-    QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${condition}.permutation.batch.${batch_index}.${params.n_batches}.txt --window ${params.cisdistance} --permute 10000 --grp-best
+    QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${condition}.permutation.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window} --permute 10000 --grp-best
     """
 }
 
@@ -400,7 +400,7 @@ process run_nominal {
 
     script:
     """
-	QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${condition}.nominal.batch.${batch_index}.${params.n_batches}.txt --window ${params.nominal_cis_window} --nominal 1
+	QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${condition}.nominal.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window} --nominal 1
     """
 }
 
