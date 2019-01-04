@@ -252,8 +252,8 @@ process compress_bed {
     file bed_file from condition_beds
 
     output:
-    set val(bed_file.simpleName), file("${bed_file}.gz") into compressed_beds_perform_pca, compressed_beds_run_nominal, compressed_beds_run_permutation
-    file "${bed_file}.gz.tbi" into compressed_bed_indexes_perform_pca, compressed_bed_indexes_run_nominal, compressed_bed_indexes_run_permutation
+    set val(bed_file.simpleName), file("${bed_file}.gz") into compressed_beds //compressed_beds_perform_pca, compressed_beds_run_nominal, compressed_beds_run_permutation
+    set val(bed_file.simpleName), file("${bed_file}.gz.tbi") into compressed_bed_indexes //compressed_bed_indexes_perform_pca, compressed_bed_indexes_run_nominal, compressed_bed_indexes_run_permutation
 
     script:
     """
@@ -272,9 +272,8 @@ process extract_samples {
     file sample_names from condition_samplenames
 
     output:
-    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info
-    file "${sample_names.simpleName}.vcf.gz" into vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
-    file "${sample_names.simpleName}.vcf.gz.csi" into vcf_indexes_perform_pca, vcf_indexes_run_permutation, vcf_indexes_run_nominal
+    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
+    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz.csi") into vcf_indexes //vcf_indexes_perform_pca, vcf_indexes_run_permutation, vcf_indexes_run_nominal
 
     script:
     """
@@ -308,6 +307,7 @@ process extract_variant_info {
     }
 }
 
+compressed_beds.join(compressed_bed_indexes).join(vcfs).join(vcf_indexes).into tuple_perform_pca, tuple_run_nominal, tuple_run_permutation
 
 /*
  * STEP 5 - Perform PCA on the genotype and phenotype data
@@ -317,15 +317,12 @@ process perform_pca {
     publishDir "${params.outdir}/PCA", mode: 'copy'
 
     input:
-    set condition, file(bed) from compressed_beds_perform_pca
-    file "${condition}.bed.gz.tbi" from compressed_bed_indexes_perform_pca
-    file vcf name "${condition}.vcf.gz" from vcfs_perform_pca
-    file "${condition}.vcf.gz.csi" from vcf_indexes_perform_pca
+    set condition, file(bed), file(bed_index), file(vcf), file(vcf_index) from tuple_perform_pca
 
     output:
     file "${condition}.pheno.pca*"
     file "${condition}.geno.pca*"
-    file "${condition}.covariates.txt" into covariates_run_nominal, covariates_run_permutation
+    set val(condition), file("${condition}.covariates.txt") into covariates_run_nominal, covariates_run_permutation
 
     script:
     """
@@ -336,6 +333,14 @@ process perform_pca {
     """
 }
 
+tuple_run_nominal
+        .join(covariates_run_nominal)
+        .set{tuple_run_nominal}
+
+tuple_run_permutation
+        .join(covariates_run_permutation)
+        .set{tuple_run_permutation}
+
 /*
  * STEP 6 - Run QTLtools in permutation mode
  */
@@ -345,11 +350,7 @@ process run_permutation {
     
     input:
     each batch_index from 1..params.n_batches
-    set condition, file(bed) from compressed_beds_run_permutation
-    file "${condition}.bed.gz.tbi" from compressed_bed_indexes_run_permutation
-    file vcf name "${condition}.vcf.gz" from vcfs_run_permutation
-    file "${condition}.vcf.gz.csi" from vcf_indexes_run_permutation
-    file covariate name "${condition}.covariates.txt" from covariates_run_permutation
+    set condition, file(bed), file(bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_permutation
 
     output:
     set val(condition), file("${condition}.permutation.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_permutation_batches
@@ -389,11 +390,7 @@ process run_nominal {
     
     input:
     each batch_index from 1..params.n_batches
-    set condition, file(bed) from compressed_beds_run_nominal
-    file "${condition}.bed.gz.tbi" from compressed_bed_indexes_run_nominal
-    file vcf name "${condition}.vcf.gz" from vcfs_run_nominal
-    file "${condition}.vcf.gz.csi" from vcf_indexes_run_nominal
-    file covariate name "${condition}.covariates.txt" from covariates_run_nominal
+    set condition, file(bed), file(bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_nominal
 
     output:
     set val(condition), file("${condition}.nominal.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_nominal_batches
