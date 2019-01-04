@@ -272,7 +272,7 @@ process extract_samples {
     file sample_names from condition_samplenames
 
     output:
-    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
+    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs // vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
     set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz.csi") into vcf_indexes //vcf_indexes_perform_pca, vcf_indexes_run_permutation, vcf_indexes_run_nominal
 
     script:
@@ -307,7 +307,7 @@ process extract_variant_info {
     }
 }
 
-compressed_beds.join(compressed_bed_indexes).join(vcfs).join(vcf_indexes).into tuple_perform_pca, tuple_run_nominal, tuple_run_permutation
+compressed_beds.join(compressed_bed_indexes).join(vcfs).join(vcf_indexes).into{ tuple_perform_pca; tuple_run_nominal; tuple_run_permutation }
 
 /*
  * STEP 5 - Perform PCA on the genotype and phenotype data
