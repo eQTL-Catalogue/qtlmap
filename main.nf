@@ -329,7 +329,7 @@ process perform_pca {
     QTLtools pca --bed $bed --center --scale --out ${condition}.pheno
     QTLtools pca --vcf $vcf --maf 0.05 --center --scale --distance 50000 --out ${condition}.geno
     head -n 7 ${condition}.pheno.pca > ${condition}.covariates.txt
-    set +o pipefail; tail -n+2 ${condition}.pheno.pca | head -n 3 >> ${condition}.covariates.txt
+    set +o pipefail; tail -n+2 ${condition}.geno.pca | head -n 3 >> ${condition}.covariates.txt
     """
 }
 
