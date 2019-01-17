@@ -27,7 +27,9 @@ option_list <- list(
   make_option(c("-c","--cisdistance"), type="integer", default=1000000, 
               help="Cis distance in bases from center of gene. [default \"%default\"]", metavar = "number"),
   make_option(c("-m", "--mincisvariant"), type="integer", default=5,
-              help="Minimum count of cis variants in cis-distance of gene to be taken into account. [default \"%default\"]", metavar = "number")
+              help="Minimum count of cis variants in cis-distance of gene to be taken into account. [default \"%default\"]", metavar = "number"),
+  make_option(c("--quantification"), type="character", default="featureCounts",
+              help="Quantification method used. Currently suppprted: featureCounts, array. [default \"%default\"]", metavar = "string")
 )
 
 message(" ## Parsing options")
@@ -35,13 +37,36 @@ opt <- parse_args(OptionParser(option_list=option_list))
 
 #Debugging
 if (FALSE) {
-  opt = list(c=1000000, m=6)
+  opt = list(c=1000000, m=7)
   opt$g="../metadata/gene_metadata/HumanHT-12_V4_gene_metadata.txt.gz"
   opt$s="../metadata/cleaned/Fairfax_2014.tsv"
   opt$e="../results/expression_matrices/HumanHT-12_V4/Fairfax_2014.tsv.gz"
   opt$v="../../temp/Fairfax_2014_GRCh38.variant_information.txt.gz"
   opt$qtlutils="../../eQTLUtils/"
   opt$o="../processed/Fairfax_2014/qtltools/input/array/" #-c 1000001 -m 6
+  opt$quantification = "array"
+}
+
+if (FALSE) {
+  opt = list(c=1000000, m=7)
+  opt$g= "metadata/gene_metadata/featureCounts_Ensembl_92_gene_metadata.txt.gz"
+  opt$s="metadata/cleaned/GENCORD.tsv"
+  opt$e="results/expression_matrices/featureCounts/GENCORD.tsv.gz"
+  opt$v="results/var_info/GENCORD_GRCh38.variant_information.txt.gz"
+  opt$qtlutils="../eQTLUtils/"
+  opt$o="processed/GENCORD/qtltools/input/featureCounts/"
+  opt$quantification = "featureCounts"
+}
+
+if (FALSE) {
+  opt = list(c=1000000, m=7)
+  opt$g= "metadata/gene_metadata/HumanHT-12_V4_gene_metadata.txt.gz"
+  opt$s="metadata/cleaned/Fairfax_2014.tsv"
+  opt$e="results/expression_matrices/HumanHT-12_V4/Fairfax_2014.tsv.gz"
+  opt$v="results/var_info/Fairfax_2014_GRCh38.variant_information.txt.gz"
+  opt$qtlutils="../eQTLUtils/"
+  opt$o="processed/CEDAR/qtltools/input/featureCounts/"
+  opt$quantification = "array"
 }
 
 gene_meta_path = opt$g
@@ -52,6 +77,16 @@ output_dir = opt$o
 cis_dist = opt$c
 cis_min_var = opt$m
 eqtl_utils_path = opt$qtlutils
+quant_method = opt$quantification
+
+#Set input and output assay names based on quantification method
+if(quant_method == "featureCounts"){
+  input_assay_name = "counts"
+  normalised_assay_name = "cqn"
+} else if (quant_method == "array"){
+  input_assay_name = "exprs"
+  normalised_assay_name = "norm_exprs"
+}
 
 load_all(eqtl_utils_path)
 
@@ -65,31 +100,21 @@ message(paste0("output_dir: ", output_dir))
 message(paste0("cis_dist: ", cis_dist))
 message(paste0("cis_min_var: ", cis_min_var))
 
-#keep chromosomes
-valid_chromosomes = c("1","10","11","12","13","14","15","16","17","18","19",
-                      "2","20","21","22","3","4","5","6","7","8","9")
-
 #Genrate Summarized Experiment object of the study
 message(" ## Reading gene metadata file")
-gene_meta = readr::read_tsv(gene_meta_path)
+gene_meta = read.table(gene_meta_path, header = TRUE, stringsAsFactors = FALSE, sep = "\t")
 
 message(" ## Reading sample metadata file")
 sample_metadata = readr::read_tsv(sample_meta_path)
 
 message(" ## Reading expression matrix")
-expression_matrix = read.table(expression_matrix_path, sep = "\t")
+expression_matrix = read.table(expression_matrix_path, sep = "\t", check.names = FALSE)
 
 message(" ## Generating Summarized Experiment object of the study")
-fairfax_2014_se = eQTLUtils::makeSummarizedExperiment(expression_matrix, gene_meta, sample_metadata, assay_name = "exprs")
+raw_se = eQTLUtils::makeSummarizedExperiment(expression_matrix, gene_meta, sample_metadata, assay_name = input_assay_name)
 
-#Filter SE to keep correct chromosomes and QC-passed samples
-message(" ## Filterin out invalid chromosomes, RNA_QC failed samples and genotype_QC failed samples ")
-#TODO add rna_qc and genotype_qc as optional parameters to optparse
-fairfax_se_filtered = suppressWarnings(eQTLUtils::filterSummarizedExperiment(fairfax_2014_se, valid_chromosomes = valid_chromosomes, filter_rna_qc = TRUE, filter_genotype_qc = TRUE))
-
-#Normalize and regress out batch effects
-message(" ## Normalizing and regressing out the batch effects")
-fairfax_norm = suppressWarnings(eQTLUtils::array_normaliseSE(fairfax_se_filtered, norm_method = "quantile", assay_name = "exprs", log_transform = TRUE, adjust_batch = TRUE, filter_quality = TRUE))
+message(" ## Prepare SummarizedExperiment object for QTLtools")
+norm_se = eQTLUtils::qtltoolsPrepareSE(raw_se, quant_method = quant_method)
 
 #Count the number of variants proximal to each gene and 
 message(" ## Importing variant information")
@@ -97,10 +122,10 @@ var_info = eQTLUtils::importVariantInformation(variant_info_path)
 
 #Remove genes without minimum variants in the region
 message(" ## Filterin out genes which do not have enough (cis_min_var) variants in the region (cis_dist)")
-fairfax_norm_filtered = eQTLUtils::checkCisVariants(fairfax_norm, var_info, cis_distance = cis_dist, min_cis_variant = cis_min_var)
+norm_filtered_se = eQTLUtils::checkCisVariants(norm_se, var_info, cis_distance = cis_dist, min_cis_variant = cis_min_var)
 
 #Export expression data to disk
 message(" ## Exporting expression data to \'", output_dir, "\' to feed QTLTools with input")
-eQTLUtils::studySEtoQTLTools(fairfax_norm_filtered, assay_name = "norm_exprs", output_dir)
+eQTLUtils::studySEtoQTLTools(norm_filtered_se, assay_name = normalised_assay_name, output_dir)
 
 message(" ## Input for QTLtools are generated in \'", output_dir, "\'")
