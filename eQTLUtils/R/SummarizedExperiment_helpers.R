@@ -69,11 +69,17 @@ makeSummarizedExperiment <- function(assay, row_data, col_data, assay_name){
 }
 
 
-filterSummarizedExperiment <- function(se, valid_chromosomes = NA, filter_rna_qc = FALSE, filter_genotype_qc = FALSE){
+filterSummarizedExperiment <- function(se, valid_chromosomes = NA, valid_gene_types = NA, filter_rna_qc = FALSE, filter_genotype_qc = FALSE){
 
   #Filter chromosomes
-  if(!is.na(valid_chromosomes)){
+  if(!is.na(valid_chromosomes[1])){
+    assertthat::assert_that(assertthat::has_name(SummarizedExperiment::rowData(se), "chromosome"))
     se = se[SummarizedExperiment::rowData(se)$chromosome %in% valid_chromosomes,]
+  }
+  #Filter gene types
+  if(!is.na(valid_gene_types[1])){
+    assertthat::assert_that(assertthat::has_name(SummarizedExperiment::rowData(se), "gene_type"))
+    se = se[SummarizedExperiment::rowData(se)$gene_type %in% valid_gene_types,]
   }
 
   #Filter RNA QC
@@ -116,18 +122,6 @@ normaliseSE_cqn <- function(se, assay_name = "counts"){
     rowData = row_data)
 }
 
-filterSE_gene_types <- function(se, valid_chromosomes = c("1","10","11","12","13","14","15","16","17","18","19",
-                                                      "2","20","21","22","3","4","5","6","7","8","9","MT","X","Y"),
-                                valid_gene_types = c("lincRNA","protein_coding","IG_C_gene","IG_D_gene","IG_J_gene",
-                                                        "IG_V_gene", "TR_C_gene","TR_D_gene","TR_J_gene", "TR_V_gene",
-                                                        "3prime_overlapping_ncrna","known_ncrna", "processed_transcript",
-                                                        "antisense","sense_intronic","sense_overlapping")){
-  selected_genes = dplyr::filter(as.data.frame(rowData(se)),
-                                 gene_type %in% valid_gene_types, chromosome %in% valid_chromosomes)
-  return(se[selected_genes$gene_id,])
-}
-
-
 normaliseSE_tpm <- function(se, assay_name = "counts", fragment_length = 250){
 
   #Extract fields
@@ -154,6 +148,19 @@ normaliseSE_tpm <- function(se, assay_name = "counts", fragment_length = 250){
     assays = assays,
     colData = col_data,
     rowData = row_data)
+}
+
+filterSE_expressedGenes <- function(se, min_count = 1, min_fraction = 0.1, assay_name = "counts"){
+
+  #Count the number of samples with at least min_count reads for each gene
+  count_matrix = assays(se)[[assay_name]]
+  expressed_counts = rowSums(count_matrix >= min_count)
+  thresh_count = ceiling(0.1*(dim(count_matrix)[2]))
+  expressed_genes = names(which(expressed_counts > thresh_count))
+
+  #Filter the se
+  final_se = se[expressed_genes,]
+  return(final_se)
 }
 
 
@@ -305,15 +312,6 @@ normaliseSE_quantile <- function(se, assay_name = "usage"){
   return(se)
 }
 
-extractPhenotypeData <- function(se){
-  meta = SummarizedExperiment::rowData(se) %>%
-    as.data.frame() %>%
-    dplyr::as_tibble() %>%
-    dplyr::select(phenotype_id, group_id, gene_id, chromosome, phenotype_pos) #Extract essential columns
-  return(meta)
-}
-
-
 #' Remove phenotypes from SummarizedExperiments that do not have cis genotypes
 #'
 #' @param se SummarizedExperiment object
@@ -323,14 +321,14 @@ extractPhenotypeData <- function(se){
 #'
 #' @return filtered SummarizedExperiment object where phenotypes with no cis variants are removed.
 #' @export
-checkCisVariants <- function(se, 
-                             variant_information, 
-                             cis_distance = 1000000, 
+checkCisVariants <- function(se,
+                             variant_information,
+                             cis_distance = 1000000,
                              min_cis_variant = 5) {
 
   #Extract gene metadata from SummarizedExperiment
   gene_data = SummarizedExperiment::rowData(se) %>% as.data.frame() %>% as_tibble()
-  
+
   #Check that all required columns are there
   assertthat::assert_that(assertthat::has_name(gene_data, "chromosome"))
   assertthat::assert_that(assertthat::has_name(gene_data, "phenotype_pos"))

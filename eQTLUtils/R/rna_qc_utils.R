@@ -1,3 +1,48 @@
+#' Generate MBV_results plots
+#'
+#' @param mbv_files_path Path where mbv_output files live
+#' @param output_path Path where the plots will ve saved
+#' @author Nurlan Kerimov
+#' @export
+
+plot_mbv_results <- function(mbv_files_path, output_path){
+  mbv_files = list.files(mbv_files_path, full.names = T)
+  
+  #Make sample names
+  sample_names = stringr::str_replace_all(basename(mbv_files), ".mbv_output.txt", "")
+  sample_list = setNames(mbv_files, sample_names)
+  
+  #Import mbv files
+  mbv_results_list = purrr::map(sample_list, ~readr::read_delim(., delim = " ", col_types = "ciiiiiiiiii"))
+  
+  for (i in c(1:length(mbv_results_list))) {
+    df <- mbv_results_list[[i]]
+    mbv_sample_name <- names(mbv_results_list)[i]
+    
+    df <- df %>% dplyr::mutate(het_consistent_frac = n_het_consistent/n_het_covered, 
+                        hom_consistent_frac = n_hom_consistent/n_hom_covered,
+                        match = FALSE) %>% 
+                 dplyr::arrange(-het_consistent_frac)
+    df$match[1] <- TRUE  
+    
+    plot_mbv <- ggplot2::ggplot(df, aes(x = het_consistent_frac, y = hom_consistent_frac, label = SampleID, color=match)) + 
+      ggplot2::geom_point() + 
+      ggplot2::scale_color_manual(values=c("red4","darkgreen"))
+    
+    if (!dir.exists(output_path)) { 
+      dir.create(paste0(output_path, "/jpeg/"), recursive = TRUE)
+      dir.create(paste0(output_path, "/plotly/dependencies/"), recursive = TRUE)
+    }
+    ggplot2::ggsave(filename = paste0(mbv_sample_name, "_mbv_plot.jpeg"), plot = plot_mbv, path = paste0(output_path, "/jpeg"), device = "jpeg")
+    
+    MDS_ggplotly_plot <- plotly::ggplotly(plot_mbv)
+    htmlwidgets::saveWidget(widget = plotly::as_widget(MDS_ggplotly_plot), 
+                            file = file.path(normalizePath(paste0(output_path, "/plotly")), paste0(mbv_sample_name, "_plotly.html")),
+                            libdir = "dependencies")
+  }
+}
+
+
 #' Generate Sex dependent QC Plot.
 #'
 #' @param study_data SummarizedExperiment file to be analysed
