@@ -237,7 +237,8 @@ process create_QTLTools_input {
         --qtlutils "${params.eqtl_utils}" \\
         -o "${params.quantification_method}" \\
         -c ${params.cis_window} \\
-        -m ${params.mincisvariant}
+        -m ${params.mincisvariant} \\
+        --quantification ${params.quantification_method}
     """
 }
 
