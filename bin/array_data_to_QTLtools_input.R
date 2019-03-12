@@ -96,7 +96,7 @@ if(quant_method == "featureCounts"){
   normalised_assay_name = "norm_exprs"
 } else if (quant_method == "LeafCutter"){
   input_assay_name = "counts"
-  normalized_assay_name = "qnorm"
+  normalised_assay_name = "qnorm"
 }
 
 load_all(eqtl_utils_path)
