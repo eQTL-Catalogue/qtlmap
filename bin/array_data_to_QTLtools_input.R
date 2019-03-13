@@ -29,7 +29,9 @@ option_list <- list(
   make_option(c("-m", "--mincisvariant"), type="integer", default=5,
               help="Minimum count of cis variants in cis-distance of gene to be taken into account. [default \"%default\"]", metavar = "number"),
   make_option(c("--quantification"), type="character", default="featureCounts",
-              help="Quantification method used. Currently suppprted: featureCounts, array. [default \"%default\"]", metavar = "string")
+              help="Quantification method used. Currently suppprted: featureCounts, array. [default \"%default\"]", metavar = "string"),
+  make_option(c("--qtl_group_extra"), type="character", default="NULL",
+              help="Name of the metadata column used in conjunction with qtl_group to split the dataset into independent QTLTools input files.", metavar = "string")
 )
 
 message(" ## Parsing options")
@@ -65,8 +67,9 @@ if (FALSE) {
   opt$e="results/expression_matrices/HumanHT-12_V4/Fairfax_2014.tsv.gz"
   opt$v="results/var_info/Fairfax_2014_GRCh38.variant_information.txt.gz"
   opt$qtlutils="../eQTLUtils/"
-  opt$o="processed/CEDAR/qtltools/input/featureCounts/"
+  opt$o="processed/Fairfax_2014/qtltools/input/array/"
   opt$quantification = "array"
+  opt$qtl_group_extra = "sex"
 }
 
 gene_meta_path = opt$g
@@ -78,6 +81,11 @@ cis_dist = opt$c
 cis_min_var = opt$m
 eqtl_utils_path = opt$qtlutils
 quant_method = opt$quantification
+if(opt$qtl_group_extra == "NULL"){
+  extra_qtl_group = NULL
+} else{
+  extra_qtl_group = opt$qtl_group_extra
+}
 
 #Set input and output assay names based on quantification method
 if(quant_method == "featureCounts"){
@@ -86,6 +94,9 @@ if(quant_method == "featureCounts"){
 } else if (quant_method == "array"){
   input_assay_name = "exprs"
   normalised_assay_name = "norm_exprs"
+} else if (quant_method == "LeafCutter"){
+  input_assay_name = "counts"
+  normalised_assay_name = "qnorm"
 }
 
 load_all(eqtl_utils_path)
@@ -126,6 +137,6 @@ norm_filtered_se = eQTLUtils::checkCisVariants(norm_se, var_info, cis_distance =
 
 #Export expression data to disk
 message(" ## Exporting expression data to \'", output_dir, "\' to feed QTLTools with input")
-eQTLUtils::studySEtoQTLTools(norm_filtered_se, assay_name = normalised_assay_name, output_dir)
+eQTLUtils::studySEtoQTLTools(norm_filtered_se, assay_name = normalised_assay_name, output_dir, extra_qtl_group = extra_qtl_group)
 
 message(" ## Input for QTLtools are generated in \'", output_dir, "\'")
