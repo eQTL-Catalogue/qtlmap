@@ -123,7 +123,16 @@ if( workflow.profile == 'awsbatch') {
      Channel
          .fromPath( params.sample_metadata )
          .ifEmpty { exit 1, "Cannot find any sample metadata file: ${params.sample_metadata}\nNB: Path needs to be enclosed in quotes!" }
-         .set { sample_metadata_create_QTLTools_input}         
+         .set { sample_metadata_create_QTLTools_input}   
+    Channel
+         .fromPath( params.phenotype_metadata )
+         .ifEmpty { exit 1, "Cannot find any phenotype metadata file: ${params.phenotype_metadata}\nNB: Path needs to be enclosed in quotes!" }
+         .set { phenotype_metadata_create_QTLTools_input}
+    Channel
+         .fromPath( params.genotype_vcf )
+         .ifEmpty { exit 1, "Cannot find any genotype vcf file: ${params.genotype_vcf}\nNB: Path needs to be enclosed in quotes!" }
+         .into { genotype_vcf_extract_variant_info; genotype_vcf_extract_samples }
+         
  }
 
 
@@ -144,12 +153,10 @@ summary['Run Name']             = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
 
 summary['Expression Matrix']    = params.expression_matrix
-summary['Gene Metadata']        = params.gene_metadata
+summary['Phenotype Metadata']   = params.phenotype_metadata
 summary['Sample Metadata']      = params.sample_metadata
-summary['Genotype file']        = params.vcf_file
-summary['Variant Info']         = params.variant_info
+summary['Genotype VCF file']    = params.genotype_vcf
 summary['Cis window']           = params.cis_window
-summary['Quantification method']= params.quantification_method
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Is imputed']           = params.is_imputed
 summary['# of batches']         = params.n_batches
@@ -213,7 +220,30 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
 //     """
 // }
 
+/*
+ * STEP 0 - Extract variant information from VCF
+ */
+process extract_all_variant_info {
+    tag "${vcf.simpleName}"
+    publishDir "${params.outdir}/final", mode: 'copy'
 
+    input:
+    file vcf from genotype_vcf_extract_variant_info
+    
+    output:
+    file "${vcf.simpleName}.variant_information.txt.gz" into variant_info_create_QTLTools_input
+
+    script:
+    if (params.is_imputed) {
+        """
+        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\t%R2\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
+        """
+    } else {
+        """
+        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
+        """
+    }
+}
 
 /*
  * STEP 1 - Generate QTLTools input files
@@ -223,25 +253,25 @@ process create_QTLTools_input {
     publishDir "${params.outdir}/qtl_input", mode: 'copy'
 
     input:
-    file expression_matrix from expression_matrix_create_QTLTools_input
-    file sample_metadata from sample_metadata_create_QTLTools_input
-
+    file expression_matrix from expression_matrix_create_QTLTools_input.collect()
+    file sample_metadata from sample_metadata_create_QTLTools_input.collect()
+    file phenotype_metadata from phenotype_metadata_create_QTLTools_input.collect()
+    file study_variant_info from variant_info_create_QTLTools_input.collect()
+    
     output: // set can be used to pass condition val and file as tuple to the channel 
-    file "${params.quantification_method}/*.bed" into condition_beds mode flatten
-    file "${params.quantification_method}/*.sample_names.txt" into condition_samplenames mode flatten
+    file "*.bed" into condition_beds mode flatten
+    file "*.sample_names.txt" into condition_samplenames mode flatten
 
     script:
     """
-    array_data_to_QTLtools_input.R \\
-        -g "${params.gene_metadata}" \\
-        -s "${sample_metadata}" \\
-        -e "${expression_matrix}" \\
-        -v "${params.variant_info}" \\
-        --qtlutils "${params.eqtl_utils}" \\
-        -o "${params.quantification_method}" \\
+    Rscript $baseDir/bin/group_by_qtlgroup.R \\
+        -p "$phenotype_metadata" \\
+        -s "$sample_metadata" \\
+        -e "$expression_matrix" \\
+        -v "$study_variant_info" \\
+        -o "." \\
         -c ${params.cis_window} \\
-        -m ${params.mincisvariant} \\
-        --quantification ${params.quantification_method}
+        -m ${params.mincisvariant}
     """
 }
 
@@ -274,6 +304,7 @@ process extract_samples {
 
     input:
     file sample_names from condition_samplenames
+    file genotype_vcf from genotype_vcf_extract_samples.collect()
 
     output:
     set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs // vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
@@ -281,7 +312,7 @@ process extract_samples {
 
     script:
     """
-    bcftools view -S $sample_names ${params.vcf_file} -Oz -o ${sample_names.simpleName}.vcf.gz
+    bcftools view -S $sample_names $genotype_vcf -Oz -o ${sample_names.simpleName}.vcf.gz
     bcftools index ${sample_names.simpleName}.vcf.gz
     """
 }
