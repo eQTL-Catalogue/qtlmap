@@ -23,7 +23,7 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   
   #Make genePos table for QTLTools
   pheno_data = dplyr::arrange(phenotype_data, chromosome, phenotype_pos) %>%
-    dplyr::transmute(chromosome, left = phenotype_pos, right = phenotype_pos, phenotype_id, group_id, strand) %>%
+    dplyr::transmute(chromosome, left = phenotype_pos, right = phenotype_pos + 1, phenotype_id, group_id, strand) %>%
     dplyr::rename("#chr" = "chromosome") %>%
     dplyr::mutate(strand = ifelse(strand == 1, "+", "-"))
   
