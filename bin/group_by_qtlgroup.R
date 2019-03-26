@@ -20,6 +20,10 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_id"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "group_id"))
+  assertthat::assert_that(assertthat::has_name(phenotype_data, "strand"))
+  
+  assertthat::assert_that(assertthat::has_name(sample_meta_qtlgroup, "sample_id"))
+  assertthat::assert_that(assertthat::has_name(sample_meta_qtlgroup, "genotype_id"))
   
   #Make genePos table for QTLTools
   pheno_data = dplyr::arrange(phenotype_data, chromosome, phenotype_pos) %>%
@@ -131,13 +135,21 @@ message(" ## Importing variant info")
 var_info = importVariantInformation(variant_info_path)
 
 #Check that all required columns are there
+#Check phenotype metadata
 assertthat::assert_that(assertthat::has_name(phenotype_data, "chromosome"))
 assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
 assertthat::assert_that(assertthat::has_name(phenotype_data, "strand"))
 assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_id"))
 
+#Check variant information
 assertthat::assert_that(assertthat::has_name(var_info, "chr"))
 assertthat::assert_that(assertthat::has_name(var_info, "pos"))
+
+#Check sample metadata
+assertthat::assert_that(assertthat::has_name(sample_metadata, "genotype_id"))
+assertthat::assert_that(assertthat::has_name(sample_metadata, "sample_id"))
+assertthat::assert_that(assertthat::has_name(sample_metadata, "qtl_group"))
+
 
 message(" ## Making gene ranges")
 #Make GRanges objects
@@ -165,7 +177,6 @@ message(" ## Filtering variantd for cis_min_var")
 phenotype_data <- phenotype_data[phenotype_data$phenotype_id %in% count_df$phenotype_id,]
 count_matrix_cis_filter <- count_matrix[count_matrix$phenotype_id %in% count_df$phenotype_id,]
 
-assertthat::assert_that(assertthat::has_name(sample_metadata, "qtl_group"))
 
 #Split the SE into list based on qtl_group
 message(" ## Grouping by qtlGroups")
