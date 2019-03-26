@@ -225,7 +225,7 @@ ${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style
  */
 process extract_all_variant_info {
     tag "${vcf.simpleName}"
-    publishDir "${params.outdir}/final", mode: 'copy'
+    // publishDir "${params.outdir}/final", mode: 'copy'
 
     input:
     file vcf from genotype_vcf_extract_variant_info
@@ -250,7 +250,7 @@ process extract_all_variant_info {
  */
 process create_QTLTools_input {
     tag "${expression_matrix.baseName}"
-    publishDir "${params.outdir}/qtl_input", mode: 'copy'
+    // publishDir "${params.outdir}/qtl_input", mode: 'copy'
 
     input:
     file expression_matrix from expression_matrix_create_QTLTools_input.collect()
@@ -280,7 +280,7 @@ process create_QTLTools_input {
  */ 
 process compress_bed {
     tag "${bed_file.baseName}"
-    publishDir "${params.outdir}/compressed_bed", mode: 'copy'
+    // publishDir "${params.outdir}/compressed_bed", mode: 'copy'
 
     input:
     file bed_file from condition_beds
@@ -300,7 +300,7 @@ process compress_bed {
  */
 process extract_samples {
     tag "${sample_names.simpleName}"
-    publishDir "${params.outdir}/vcf", mode: 'copy'
+    // publishDir "${params.outdir}/vcf", mode: 'copy'
 
     input:
     file sample_names from condition_samplenames
@@ -381,7 +381,7 @@ tuple_run_permutation
  */
 process run_permutation {
     tag "${condition} - ${batch_index}/${params.n_batches}"
-    publishDir "${params.outdir}/temp_batches", mode: 'copy'
+    // publishDir "${params.outdir}/temp_batches", mode: 'copy'
     
     input:
     each batch_index from 1..params.n_batches
@@ -421,7 +421,7 @@ process merge_permutation_batches {
  */
 process run_nominal {
     tag "${condition} - ${batch_index}/${params.n_batches}"
-    publishDir "${params.outdir}/temp_batches", mode: 'copy'
+    // publishDir "${params.outdir}/temp_batches", mode: 'copy'
     
     input:
     each batch_index from 1..params.n_batches
@@ -441,7 +441,7 @@ process run_nominal {
  */
 process merge_nominal_batches {
     tag "${condition}"
-    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+    // publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
 
     input:
     set condition, batch_file_names from batch_files_merge_nominal_batches.groupTuple(size: params.n_batches, sort: true)  
@@ -460,7 +460,7 @@ process merge_nominal_batches {
  */
 process replace_space_tabs {
     tag "${condition}"
-    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+    // publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
 	
     input:
     set condition, file(nominal_merged) from nominal_merged_files_replace_space_tabs
