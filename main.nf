@@ -401,7 +401,7 @@ process run_permutation {
  */
 process merge_permutation_batches {
     tag "${condition}"
-    publishDir "${params.outdir}/Permutation_merged", mode: 'copy'
+    publishDir "${params.outdir}/final", mode: 'copy'
 
     input:
     set condition, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
@@ -479,7 +479,7 @@ process replace_space_tabs {
  */
 process sort_qtltools_output {
     tag "${condition}"
-    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+    publishDir "${params.outdir}/final", mode: 'copy'
 
     input:
     set condition, file(nominal_merged) from nominal_merged_tab_sort_qtltools_output
@@ -498,7 +498,7 @@ process sort_qtltools_output {
  */
 process index_qtltools_output {
     tag "${condition}"
-    publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+    publishDir "${params.outdir}/final", mode: 'copy'
 
     input:
     set condition, file(sorted_merged_nominal) from sorted_merged_nominal_index_qtltools_output
