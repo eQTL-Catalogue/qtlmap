@@ -1,17 +1,16 @@
 #!/usr/bin/env nextflow
 /*
 ========================================================================================
-                         nf-core/qtlmap
+                         kerimoff/qtlmap
 ========================================================================================
- nf-core/qtlmap Analysis Pipeline.
+ kerimoff/qtlmap Analysis Pipeline.
  #### Homepage / Documentation
- https://github.com/nf-core/qtlmap
+ https://github.com/kerimoff/qtlmap
 ----------------------------------------------------------------------------------------
 */
 
 
 def helpMessage() {
-    // TODO nf-core: Add to this help message with new command line parameters
     log.info"""
     =======================================================
                                               ,--./,-.
@@ -20,26 +19,32 @@ def helpMessage() {
         | \\| |       \\__, \\__/ |  \\ |___     \\`-._,-`-,
                                               `._,._,\'
 
-     nf-core/qtlmap v${workflow.manifest.version}
+     kerimoff/qtlmap v${workflow.manifest.version}
     =======================================================
 
     Usage:
 
     The typical command for running the pipeline is as follows:
 
-    nextflow run nf-core/qtlmap --reads '*_R{1,2}.fastq.gz' -profile docker
+    nextflow run main.nf\
+     -profile tartu_hpc\
+     --expression_matrix testdata/GEUVADIS_cqn.tsv\
+     --phenotype_metadata testdata/GEUVADIS_phenotype_metadata.tsv\
+     --sample_metadata testdata/GEUVADIS_sample_metadata.tsv\
+     --genotype_vcf testdata/GEUVADIS_genotypes.vcf.gz\
+     --is_imputed FALSE
 
     Mandatory arguments:
-      --reads                       Path to input data (must be surrounded with quotes)
-      --genome                      Name of iGenomes reference
-      -profile                      Configuration profile to use. Can use multiple (comma separated)
-                                    Available: conda, docker, singularity, awsbatch, test and more.
+      --expression_matrix           Path to phenotype matrix data (.tsv - normalized and quality controlled)
+      --phenotype_metadata          Path to phenotype metadata (.tsv)
+      --sample_metadata             Path to sample metadata (.tsv)
+      --genotype_vcf                Path to genotype (VCF) file 
 
     Options:
-      --singleEnd                   Specifies that the input is single end reads
-
-    References                      If not specified in the configuration file or you wish to overwrite any of the references.
-      --fasta                       Path to Fasta reference
+      --cis_window                  The window where to search for associated variants around the phenotype (default: 1000000)
+      --mincisvariant               Minimum variants needed to be found in cis_window (default: 56)   
+      --n_batches                   Number of parallel batches to run QTL Mapping per sample (default: 400)
+      --is_imputed                  Is the genotype input file imputed? (default: true)
 
     Other options:
       --outdir                      The output directory where the results will be saved
@@ -62,28 +67,12 @@ if (params.help){
     exit 0
 }
 
-// TODO nf-core: Add any reference files that are needed
-// Configurable reference genomes
-// fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
-// if ( params.fasta ){
-//     fasta = file(params.fasta)
-//     if( !fasta.exists() ) exit 1, "Fasta file not found: ${params.fasta}"
-// }
-//
-// NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
-// If you want to use the above in a process, define the following:
-//   input:
-//   file fasta from fasta
-//
-
-
 // Has the run name been specified by the user?
 //  this has the bonus effect of catching both -name and --name
 custom_runName = params.name
 if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
   custom_runName = workflow.runName
 }
-
 
 if( workflow.profile == 'awsbatch') {
   // AWSBatch sanity checking
@@ -93,10 +82,6 @@ if( workflow.profile == 'awsbatch') {
   // related: https://github.com/nextflow-io/nextflow/issues/813
   if (!workflow.workDir.startsWith('s3:') || !params.outdir.startsWith('s3:')) exit 1, "Workdir or Outdir not on S3 - specify S3 Buckets for each to run on AWSBatch!"
 }
-
-// Stage config files
-// ch_multiqc_config = Channel.fromPath(params.multiqc_config)
-// ch_output_docs = Channel.fromPath("$baseDir/docs/output.md")
 
 /*
  * Create a channel for input read files
@@ -144,14 +129,12 @@ log.info """=======================================================
     | \\| |       \\__, \\__/ |  \\ |___     \\`-._,-`-,
                                           `._,._,\'
 
-nf-core/qtlmap v${workflow.manifest.version}"
+kerimoff/qtlmap v${workflow.manifest.version}"
 ======================================================="""
 def summary = [:]
-summary['Pipeline Name']        = 'nf-core/qtlmap'
+summary['Pipeline Name']        = 'kerimoff/qtlmap'
 summary['Pipeline Version']     = workflow.manifest.version
 summary['Run Name']             = custom_runName ?: workflow.runName
-// TODO nf-core: Report custom parameters here
-
 summary['Expression Matrix']    = params.expression_matrix
 summary['Phenotype Metadata']   = params.phenotype_metadata
 summary['Sample Metadata']      = params.sample_metadata
@@ -182,43 +165,6 @@ if(params.email) summary['E-mail Address'] = params.email
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
-
-def create_workflow_summary(summary) {
-    def yaml_file = workDir.resolve('workflow_summary_mqc.yaml')
-    yaml_file.text  = """
-    id: 'nf-core-qtlmap-summary'
-    description: " - this information is collected when the pipeline is started."
-    section_name: 'nf-core/qtlmap Workflow Summary'
-    section_href: 'https://github.com/nf-core/qtlmap'
-    plot_type: 'html'
-    data: |
-        <dl class=\"dl-horizontal\">
-${summary.collect { k,v -> "            <dt>$k</dt><dd><samp>${v ?: '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }.join("\n")}
-        </dl>
-    """.stripIndent()
-
-   return yaml_file
-}
-
-
-/*
- * Parse software version numbers
- */
-// process get_software_versions {
-
-//     output:
-//     file 'software_versions_mqc.yaml' into software_versions_yaml
-
-//     script:
-//     // TODO nf-core: Get all tools to print their version number here
-//     """
-//     echo $workflow.manifest.version > v_pipeline.txt
-//     echo $workflow.nextflow.version > v_nextflow.txt
-//     fastqc --version > v_fastqc.txt
-//     multiqc --version > v_multiqc.txt
-//     scrape_software_versions.py > software_versions_mqc.yaml
-//     """
-// }
 
 /*
  * STEP 0 - Extract variant information from VCF
@@ -520,9 +466,9 @@ process index_qtltools_output {
 workflow.onComplete {
 
     // Set up the e-mail variables
-    def subject = "[nf-core/qtlmap] Successful: $workflow.runName"
+    def subject = "[kerimoff/qtlmap] Successful: $workflow.runName"
     if(!workflow.success){
-      subject = "[nf-core/qtlmap] FAILED: $workflow.runName"
+      subject = "[kerimoff/qtlmap] FAILED: $workflow.runName"
     }
     def email_fields = [:]
     email_fields['version'] = workflow.manifest.version
@@ -570,11 +516,11 @@ workflow.onComplete {
           if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
           // Try to send HTML e-mail using sendmail
           [ 'sendmail', '-t' ].execute() << sendmail_html
-          log.info "[nf-core/qtlmap] Sent summary e-mail to $params.email (sendmail)"
+          log.info "[kerimoff/qtlmap] Sent summary e-mail to $params.email (sendmail)"
         } catch (all) {
           // Catch failures and try with plaintext
           [ 'mail', '-s', subject, params.email ].execute() << email_txt
-          log.info "[nf-core/qtlmap] Sent summary e-mail to $params.email (mail)"
+          log.info "[kerimoff/qtlmap] Sent summary e-mail to $params.email (mail)"
         }
     }
 
@@ -588,6 +534,6 @@ workflow.onComplete {
     def output_tf = new File( output_d, "pipeline_report.txt" )
     output_tf.withWriter { w -> w << email_txt }
 
-    log.info "[nf-core/qtlmap] Pipeline Complete"
+    log.info "[kerimoff/qtlmap] Pipeline Complete"
 
 }
