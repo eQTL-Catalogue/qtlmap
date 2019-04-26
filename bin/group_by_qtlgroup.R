@@ -56,6 +56,7 @@ importVariantInformation <- function(path){
   
   # snp_info = readr::read_delim(path, delim = "\t", col_types = into_col_types, col_names = info_col_names)
   snp_info = utils::read.delim(path, colClasses = into_col_types, col.names = info_col_names, header = FALSE) %>% as.data.frame()
+  assertthat::assert_that(nrow(snp_info)>1, msg="variant info is empty")
 
   snp_info = dplyr::mutate(snp_info, indel_length = pmax(nchar(alt), nchar(ref))) %>%
     dplyr::mutate(is_indel = ifelse(indel_length > 1, TRUE, FALSE)) %>%
