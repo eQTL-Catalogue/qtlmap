@@ -13,6 +13,5 @@ This pipeline requires 4 mandatory input files:
 
 ## Relationships between input files are shown below.
 
-![input_relationships](docs/images/input_relations.svg)
-
+![input_relationships](https://github.com/kerimoff/qtlmap/blob/master/docs/images/input_relations.svg)
 
