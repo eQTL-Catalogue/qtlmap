@@ -52,7 +52,11 @@ NXF_OPTS='-Xms1g -Xmx4g'
 ## Running the pipeline
 The typical command for running the pipeline is as follows:
 ```bash
-nextflow run nf-core/qtlmap --reads '*_R{1,2}.fastq.gz' -profile docker
+nextflow run kerimoff/qtlmap\
+     --expression_matrix testdata/GEUVADIS_cqn.tsv\
+     --phenotype_metadata testdata/GEUVADIS_phenotype_metadata.tsv\
+     --sample_metadata testdata/GEUVADIS_sample_metadata.tsv\
+     --genotype_vcf testdata/GEUVADIS_genotypes.vcf.gz
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
