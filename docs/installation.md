@@ -34,13 +34,13 @@ See [nextflow.io](https://www.nextflow.io/) for further instructions on how to i
 ## 2) Install the pipeline
 
 #### 2.1) Automatic
-This pipeline itself needs no installation - NextFlow will automatically fetch it from GitHub if `nf-core/qtlmap` is specified as the pipeline name.
+This pipeline itself needs no installation - NextFlow will automatically fetch it from GitHub if `kerimoff/qtlmap` is specified as the pipeline name.
 
 #### 2.2) Offline
 The above method requires an internet connection so that Nextflow can download the pipeline files. If you're running on a system that has no internet connection, you'll need to download and transfer the pipeline files manually:
 
 ```bash
-wget https://github.com/nf-core/qtlmap/archive/master.zip
+wget https://github.com/kerimoff/qtlmap/archive/master.zip
 mkdir -p ~/my-pipelines/nf-core/
 unzip master.zip -d ~/my-pipelines/nf-core/
 cd ~/my_data/
@@ -79,21 +79,6 @@ Then, running the pipeline with the option `-profile docker` tells Nextflow to e
 #### 3.1) Software deps: Singularity
 If you're not able to use Docker then [Singularity](http://singularity.lbl.gov/) is a great alternative.
 The process is very similar: running the pipeline with the option `-profile singularity` tells Nextflow to enable singularity for this run. An image containing all of the software requirements will be automatically fetched and used from singularity hub.
-
-If running offline with Singularity, you'll need to download and transfer the Singularity image first:
-
-```bash
-singularity pull --name nf-core-qtlmap.simg shub://nf-core/qtlmap
-```
-
-Once transferred, use `-with-singularity` and specify the path to the image file:
-
-```bash
-nextflow run /path/to/nf-core-qtlmap -with-singularity nf-core-qtlmap.simg
-```
-
-Remember to pull updated versions of the singularity image if you update the pipeline.
-
 
 #### 3.2) Software deps: conda
 If you're not able to use Docker _or_ Singularity, you can instead use conda to manage the software requirements.
