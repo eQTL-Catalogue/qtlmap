@@ -11,7 +11,6 @@ To start using the nf-core/qtlmap pipeline, follow the steps below:
     * [Software deps: Docker and Singularity](#31-software-deps-docker-and-singularity)
     * [Software deps: Bioconda](#32-software-deps-bioconda)
     * [Configuration profiles](#33-configuration-profiles)
-4. [Reference genomes](#4-reference-genomes)
 
 ## 1) Install NextFlow
 Nextflow runs on most POSIX systems (Linux, Mac OSX etc). It can be installed by running the following commands:
@@ -90,6 +89,3 @@ To use it first ensure that you have conda installed (we recommend [miniconda](h
 
 See [`docs/configuration/adding_your_own.md`](configuration/adding_your_own.md)
 
-## 4) Reference genomes
-
-See [`docs/configuration/reference_genomes.md`](configuration/reference_genomes.md)
