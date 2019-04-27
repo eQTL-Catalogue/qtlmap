@@ -1,16 +1,10 @@
-# nf-core/qtlmap: Usage
+# kerimoff/qtlmap: Usage
 
 ## Table of contents
 
 * [Introduction](#general-nextflow-info)
 * [Running the pipeline](#running-the-pipeline)
 * [Main arguments](#main-arguments)
-    * [`-profile`](#-profile-single-dash)
-        * [`awsbatch`](#awsbatch)
-        * [`conda`](#conda)
-        * [`docker`](#docker)
-        * [`singularity`](#singularity)
-        * [`test`](#test)
     * [`--expression_matrix`](#--expression_matrix)
     * [`--phenotype_metadata`](#--phenotype_metadata)
     * [`--sample_metadata`](#--sample_metadata)
@@ -19,25 +13,30 @@
     * [`--mincisvariant`](#--mincisvariant)
     * [`--n_batches`](#--n_batches)
     * [`--is_imputed`](#--is_imputed)
-* [Job resources](#--job-resources)
+* [Using profiles](#-profile)
+    * [`-profile`](#-profile-single-dash)
+       * [`awsbatch`](#awsbatch)
+       * [`conda`](#conda)
+       * [`docker`](#docker)
+       * [`singularity`](#singularity)
+       * [`test`](#test)
+* [Job resources](#job-resources)
 * [Automatic resubmission](#automatic-resubmission)
 * [Custom resource requests](#custom-resource-requests)
 * [AWS batch specific parameters](#aws-batch-specific-parameters)
-    * [`-awsbatch`](#-awsbatch)
     * [`--awsqueue`](#--awsqueue)
     * [`--awsregion`](#--awsregion)
 * [Other command line parameters](#other-command-line-parameters)
     * [`--outdir`](#--outdir)
     * [`--email`](#--email)
-    * [`-name`](#-name-single-dash)
-    * [`-resume`](#-resume-single-dash)
-    * [`-c`](#-c-single-dash)
+    * [`-name`](#-name)
+    * [`-resume`](#-resume)
+    * [`-c`](#-c)
     * [`--custom_config_version`](#--custom_config_version)
     * [`--max_memory`](#--max_memory)
     * [`--max_time`](#--max_time)
     * [`--max_cpus`](#--max_cpus)
     * [`--plaintext_email`](#--plaintext_email)
-    * [`--multiqc_config`](#--multiqc_config)
 
 
 ## General Nextflow info
@@ -48,7 +47,7 @@ It is recommended to limit the Nextflow Java virtual machines memory. We recomme
 ```bash
 NXF_OPTS='-Xms1g -Xmx4g'
 ```
-<!-- TODO nf-core: Document required command line parameters to run the pipeline-->
+
 ## Running the pipeline
 The typical command for running the pipeline is as follows:
 ```bash
@@ -70,8 +69,121 @@ results         # Finished results (configurable, see below)
 # Other nextflow hidden files, eg. history of pipeline runs and old logs.
 ```
 
-## Main arguments
+# Main arguments
 
+## Mandatory Arguments
+### `--expression_matrix`
+Use this to specify the location of your phenotype matrix file (.tsv). Should contain at least the following columns: **_phenotype_id_**
+
+For example:
+
+```bash
+nextflow run main.nf --expression_matrix testdata/GEUVADIS_cqn.tsv
+```
+
+```groovy
+params {
+    expression_matrix = "$baseDir/testdata/GEUVADIS_cqn.tsv"
+}
+```
+
+### `--phenotype_metadata`
+Use this to specify the location of your phenotype metadata file (.tsv). Should contain at least the following columns: **_phenotype_id, chromosome, phenotype_pos, strand_**
+
+For example:
+
+```bash
+nextflow run main.nf --phenotype_metadata testdata/GEUVADIS_phenotype_metadata.tsv
+```
+
+```groovy
+params {
+    phenotype_metadata = "$baseDir/testdata/GEUVADIS_phenotype_metadata.tsv"
+}
+```
+
+### `--sample_metadata`
+Use this to specify the location of your sample metadata file (.tsv). Should contain at least the following columns: **_sample_id, genotype_id, qtl_group_**
+
+For example:
+
+```bash
+nextflow run main.nf --sample_metadata testdata/GEUVADIS_sample_metadata.tsv
+```
+
+```groovy
+params {
+    sample_metadata = "$baseDir/testdata/GEUVADIS_sample_metadata.tsv"
+}
+```
+
+### `--genotype_vcf`
+Use this to specify the location of your genotype file (.vcf of .vcf.gz). For example:
+Data column names of the VCF file should correspond to the _**genotype_id**_ column values of sample_metadata. See [Input files explanations](docs/inputs_expl.md) for more details
+
+```bash
+nextflow run main.nf --genotype_vcf testdata/GEUVADIS_genotypes.vcf.gz
+```
+
+```groovy
+params {
+    genotype_vcf = "$baseDir/testdata/GEUVADIS_genotypes.vcf.gz"
+}
+```
+## Optional Arguments
+### `--cis_window`
+Use this to specify the cis-window length in bases. Deafult value is _**1,000,000 bases (1Mb)**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --cis_window 1500000
+```
+
+```groovy
+params {
+    cis_window = 1500000
+}
+```
+
+### `--mincisvariant`
+Use this to specify the threshold minimum variants in specified cis window. If for specific phenotype, there are less variants found in cis window than this threshold, the phenotype is filtered out and not processed further. Default value is _**5**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --mincisvariant 10
+```
+
+```groovy
+params {
+    mincisvariant = 10
+}
+```
+
+### `--n_batches`
+Use this to specify the number of batches used in QTL mapping run. QTLTools will split the genome into this number of chunks and perform the run in a parallel manner. The default value is _**400**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --n_batches 200
+```
+
+```groovy
+params {
+    n_batches = 200
+}
+```
+
+### `--is_imputed`
+Use this to specify if the provided genotype (VCF) file is imputed or not. The imputed genotype files should have the following columns _**CHROM, POS, ID, REF, ALT, TYPE, AC, AN, MAF, R2**_. The default value is _**TRUE**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --is_imputed FALSE
+```
+
+```groovy
+params {
+    is_imputed = false
+}
+```
+
+## Using profiles
 ### `-profile`
 Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments. Note that multiple profiles can be loaded, for example: `-profile docker` - the order of arguments is important!
 
@@ -92,33 +204,6 @@ If `-profile` is not specified at all the pipeline will be run locally and expec
     * A profile with a complete configuration for automated testing
     * Includes links to test data so needs no other parameters
 
-<!-- TODO nf-core: Document required command line parameters -->
-### `--expression_matrix`
-Use this to specify the location of your input FastQ files. For example:
-
-### `--phenotype_metadata`
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
-
-### `--sample_metadata`
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
-
-### `--genotype_vcf`
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
-
-### `--cis_window`
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
-
-
-### `--mincisvariant`
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
-
-
-### `--n_batches`
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
-
-
-### `--is_imputed`
-By default, the pipeline expects paired-end data. If you have single-end data, you need to specify `--singleEnd` on the command line when you launch the pipeline. A normal glob pattern, enclosed in quotation marks, can then be used for `--reads`. For example:
 
 ## Job resources
 ### Automatic resubmission
@@ -193,6 +278,3 @@ Should be a string in the format integer-unit. eg. `--max_cpus 1`
 
 ### `--plaintext_email`
 Set to receive plain-text e-mails instead of HTML formatted.
-
-### `--multiqc_config`
-Specify a path to a custom MultiQC configuration file.
