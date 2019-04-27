@@ -103,19 +103,19 @@ if( workflow.profile == 'awsbatch') {
  } else {
      Channel
          .fromPath( params.expression_matrix)
-         .ifEmpty { exit 1, "Cannot find any expression_matrix file: ${params.expression_matrix}\nNB: Path needs to be enclosed in quotes!" }
+         .ifEmpty { exit 1, "Cannot find any expression_matrix file: ${params.expression_matrix}\n" }
          .set { expression_matrix_create_QTLTools_input}
      Channel
          .fromPath( params.sample_metadata )
-         .ifEmpty { exit 1, "Cannot find any sample metadata file: ${params.sample_metadata}\nNB: Path needs to be enclosed in quotes!" }
+         .ifEmpty { exit 1, "Cannot find any sample metadata file: ${params.sample_metadata}\n" }
          .set { sample_metadata_create_QTLTools_input}   
     Channel
          .fromPath( params.phenotype_metadata )
-         .ifEmpty { exit 1, "Cannot find any phenotype metadata file: ${params.phenotype_metadata}\nNB: Path needs to be enclosed in quotes!" }
+         .ifEmpty { exit 1, "Cannot find any phenotype metadata file: ${params.phenotype_metadata}\n" }
          .set { phenotype_metadata_create_QTLTools_input}
     Channel
          .fromPath( params.genotype_vcf )
-         .ifEmpty { exit 1, "Cannot find any genotype vcf file: ${params.genotype_vcf}\nNB: Path needs to be enclosed in quotes!" }
+         .ifEmpty { exit 1, "Cannot find any genotype vcf file: ${params.genotype_vcf}\n" }
          .into { genotype_vcf_extract_variant_info; genotype_vcf_extract_samples }
          
  }
