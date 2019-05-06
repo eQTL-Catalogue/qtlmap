@@ -4,7 +4,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  # TODO nf-core: Add required software dependencies here
   - conda-forge::r-dplyr=0.8.0.1
   - conda-forge::r-optparse=1.6.1
   - bioconda::bioconductor-genomicranges=1.34.0
