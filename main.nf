@@ -143,6 +143,8 @@ summary['Cis window']           = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Is imputed']           = params.is_imputed
 summary['# of batches']         = params.n_batches
+summary['# of phenotype pcs']   = params.n_pheno_pcs
+summary['# of genotype pcs']    = params.n_geno_pcs
 summary['Max Memory']           = params.max_memory
 summary['Max CPUs']             = params.max_cpus
 summary['Max Time']             = params.max_time
@@ -309,8 +311,8 @@ process perform_pca {
     """
     QTLtools pca --bed $bed --center --scale --out ${condition}.pheno
     QTLtools pca --vcf $vcf --maf 0.05 --center --scale --distance 50000 --out ${condition}.geno
-    head -n 7 ${condition}.pheno.pca > ${condition}.covariates.txt
-    set +o pipefail; tail -n+2 ${condition}.geno.pca | head -n 3 >> ${condition}.covariates.txt
+    head -n ${params.n_pheno_pcs + 1} ${condition}.pheno.pca > ${condition}.covariates.txt
+    set +o pipefail; tail -n+2 ${condition}.geno.pca | head -n ${params.n_geno_pcs} >> ${condition}.covariates.txt
     """
 }
 
