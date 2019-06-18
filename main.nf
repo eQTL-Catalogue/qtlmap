@@ -331,6 +331,9 @@ process run_permutation {
     tag "${condition} - ${batch_index}/${params.n_batches}"
     // publishDir "${params.outdir}/temp_batches", mode: 'copy'
     
+    when:
+    params.run_permutation
+
     input:
     each batch_index from 1..params.n_batches
     set condition, file(bed), file(bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_permutation
@@ -350,6 +353,9 @@ process run_permutation {
 process merge_permutation_batches {
     tag "${condition}"
     publishDir "${params.outdir}/final", mode: 'copy'
+    
+    when:
+    params.run_permutation
 
     input:
     set condition, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
