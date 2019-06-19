@@ -39,10 +39,12 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   count_matrix_group[,names(count_matrix_group) != "phenotype_id"] <- 
     round(count_matrix_group[,names(count_matrix_group) != "phenotype_id"], 3) #Round to three digits
   
+  pheno_data_filtered <- pheno_data %>% dplyr::filter(phenotype_id %in% count_matrix_group$phenotype_id)
+  
   #Make QTLtools phenotype table
   res = count_matrix_group %>%
     dplyr::select(phenotype_id, dplyr::everything()) %>%
-    dplyr::left_join(pheno_data, ., by = "phenotype_id") %>%
+    dplyr::left_join(pheno_data_filtered, ., by = "phenotype_id") %>%
     dplyr::arrange()
   
   return(res)
@@ -62,6 +64,20 @@ importVariantInformation <- function(path){
     dplyr::mutate(is_indel = ifelse(indel_length > 1, TRUE, FALSE)) %>%
     dplyr::mutate(MAF = pmin(AC/AN, 1-(AC/AN)))
   return(snp_info)
+}
+
+
+performQTLGroupPCA <- function(ph_count_matrix_group, output_dir){
+  # perfrom PCA for phenotype matrix
+  pheno_pca <- stats::prcomp(t(ph_count_matrix_group[-(1:6)]), center=TRUE, scale. = TRUE)
+  pheno_pca_x <- t(pheno_pca$x) %>% as.data.frame() 
+  
+  # change PC column values as into pheno_PC
+  pheno_pca_x <- cbind(SampleID = paste0("pheno_", rownames(pheno_pca_x)), pheno_pca_x)
+  
+  # write phenotype PCA matrix into file
+  message(" ## write phenotype PCA matrix to ", file.path(output_dir, "pheno_PCA.tsv"))
+  write.table(pheno_pca_x, file = file.path(output_dir, "pheno_PCA.tsv"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 }
 
 # main script which gets inputs and produces outputs
@@ -174,7 +190,7 @@ count_df = dplyr::select(phenotype_data, phenotype_id, chromosome, phenotype_pos
   dplyr::filter(snp_count >= cis_min_var)
 
 #Keep phenotypes that contain enough variants nearby
-message(" ## Filtering variantd for cis_min_var")
+message(" ## Filtering variants for cis_min_var")
 phenotype_data <- phenotype_data[phenotype_data$phenotype_id %in% count_df$phenotype_id,]
 count_matrix_cis_filter <- count_matrix[count_matrix$phenotype_id %in% count_df$phenotype_id,]
 
@@ -186,7 +202,7 @@ group_list = stats::setNames(as.list(qtl_groups), qtl_groups)
 sample_meta_qtlgroup_df_list = purrr::map(group_list, ~sample_metadata[sample_metadata[,"qtl_group"] == .,])
 qtltools_list = purrr::map(sample_meta_qtlgroup_df_list, 
                            ~convertDFtoQTLtools(sample_meta_qtlgroup = ., 
-                                                count_matrix = count_matrix, 
+                                                count_matrix = count_matrix_cis_filter, 
                                                 phenotype_data = phenotype_data))
 
 message(" ## Generating QTLgrouped files ")
@@ -195,3 +211,15 @@ saveQTLToolsMatrices(qtltools_list, output_dir = output_dir, file_suffix = "bed"
 #Extract sample names
 sample_names = purrr::map(qtltools_list, ~colnames(.)[-(1:6)])
 saveQTLToolsMatrices(sample_names, output_dir = output_dir, file_suffix = "sample_names.txt", col_names = FALSE)
+
+for (qtl_group_name in names(qtltools_list)) {
+  pheno_pca <- stats::prcomp(t(qtltools_list[[qtl_group_name]][-(1:6)]), center=TRUE, scale. = TRUE)
+  pheno_pca_x <- t(pheno_pca$x) %>% as.data.frame() 
+  
+  # change PC column values as into pheno_PC
+  pheno_pca_x <- cbind(SampleID = paste0("pheno_", rownames(pheno_pca_x)), pheno_pca_x)
+  
+  # write phenotype PCA matrix into file
+  message(" ## write phenotype PCA matrix to ", file.path(output_dir, paste0(qtl_group_name,"_pheno_PCA.tsv") ) )
+  utils::write.table(pheno_pca_x, file = file.path(output_dir, paste0(qtl_group_name,"_pheno_PCA.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+}
