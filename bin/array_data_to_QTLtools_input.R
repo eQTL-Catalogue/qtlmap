@@ -140,3 +140,17 @@ message(" ## Exporting expression data to \'", output_dir, "\' to feed QTLTools 
 eQTLUtils::studySEtoQTLTools(norm_filtered_se, assay_name = normalised_assay_name, output_dir, extra_qtl_group = extra_qtl_group)
 
 message(" ## Input for QTLtools are generated in \'", output_dir, "\'")
+
+# perfrom PCA for phenotype matrix
+pheno_pca <- stats::prcomp(t(expression_matrix %>% dplyr::select(-phenotype_id)), center=TRUE, scale. = TRUE)
+pheno_pca_x <- t(pheno_pca$x) %>% as.data.frame() 
+
+# set colnames to genotypeID from sampleIDs
+data.table::setnames(pheno_pca_x, old = sample_metadata$sample_id, new = sample_metadata$genotype_id)
+
+# change PC column values as into pheno_PC
+pheno_pca_x <- cbind(SampleID = paste0("pheno_", rownames(pheno_pca_x)), pheno_pca_x)
+
+# write phenotype PCA matrix into file
+message(" ## write phenotype PCA matrix to ", file.path(output_dir, "pheno_PCA.tsv"))
+write.table(pheno_pca_x, file = file.path(output_dir, "pheno_PCA.tsv"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
