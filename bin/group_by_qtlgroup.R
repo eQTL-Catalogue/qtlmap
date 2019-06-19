@@ -220,6 +220,6 @@ for (qtl_group_name in names(qtltools_list)) {
   pheno_pca_x <- cbind(SampleID = paste0("pheno_", rownames(pheno_pca_x)), pheno_pca_x)
   
   # write phenotype PCA matrix into file
-  message(" ## write phenotype PCA matrix to ", file.path(output_dir, paste0(qtl_group_name,"_pheno_PCA.tsv") ) )
-  utils::write.table(pheno_pca_x, file = file.path(output_dir, paste0(qtl_group_name,"_pheno_PCA.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+  message(" ## write phenotype PCA matrix to ", file.path(output_dir, paste0(qtl_group_name,".phenoPCA.tsv") ) )
+  utils::write.table(pheno_pca_x, file = file.path(output_dir, paste0(qtl_group_name,".phenoPCA.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 }
