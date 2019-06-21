@@ -9,4 +9,6 @@ dependencies:
   - bioconda::bioconductor-genomicranges=1.34.0
   - bioconda::bcftools=1.9
   - bioconda::tabix=0.2.6
+  - bioconda::plink2=1.90b3.35
+  - bioconda::csvtk=0.18.2
 
