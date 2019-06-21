@@ -198,7 +198,10 @@ process extract_all_variant_info {
  */
 process create_QTLTools_input {
     tag "${expression_matrix.baseName}"
-    // publishDir "${params.outdir}/qtl_input", mode: 'copy'
+    publishDir "${params.outdir}/", mode: 'copy',
+    saveAs: {filename ->
+        if (filename.indexOf(".phenoPCA.tsv") > 0) "PCA/$filename" else null
+    }
 
     input:
     file expression_matrix from expression_matrix_create_QTLTools_input.collect()
@@ -209,6 +212,7 @@ process create_QTLTools_input {
     output: // set can be used to pass condition val and file as tuple to the channel 
     file "*.bed" into condition_beds mode flatten
     file "*.sample_names.txt" into condition_samplenames mode flatten
+    file "*.phenoPCA.tsv" into condition_PCAs
 
     script:
     """
@@ -255,7 +259,7 @@ process extract_samples {
     file genotype_vcf from genotype_vcf_extract_samples.collect()
 
     output:
-    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs // vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
+    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca // vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
     set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz.csi") into vcf_indexes //vcf_indexes_perform_pca, vcf_indexes_run_permutation, vcf_indexes_run_nominal
 
     script:
@@ -290,7 +294,8 @@ process extract_variant_info {
     }
 }
 
-compressed_beds.join(compressed_bed_indexes).join(vcfs).join(vcf_indexes).into{ tuple_perform_pca; tuple_run_nominal; tuple_run_permutation }
+compressed_beds.join(compressed_bed_indexes).join(vcfs).join(vcf_indexes).into{ tuple_run_nominal; tuple_run_permutation }
+condition_PCAs.map { file -> [ file.simpleName, file] }.join(vcfs_perform_pca).set{ tuple_perform_pca }
 
 /*
  * STEP 5 - Perform PCA on the genotype and phenotype data
@@ -300,18 +305,23 @@ process perform_pca {
     publishDir "${params.outdir}/PCA", mode: 'copy'
 
     input:
-    set condition, file(bed), file(bed_index), file(vcf), file(vcf_index) from tuple_perform_pca
+    set condition, file(phenotype_pca), file(vcf) from tuple_perform_pca
 
     output:
-    file "${condition}.pheno.pca*"
     file "${condition}.geno.pca*"
     set val(condition), file("${condition}.covariates.txt") into covariates_run_nominal, covariates_run_permutation
 
     script:
     """
-    QTLtools pca --bed $bed --center --scale --out ${condition}.pheno
-    QTLtools pca --vcf $vcf --maf 0.05 --center --scale --distance 50000 --out ${condition}.geno
-    head -n ${params.n_pheno_pcs + 1} ${condition}.pheno.pca > ${condition}.covariates.txt
+    plink2 --vcf $vcf --vcf-half-call h --indep-pairwise 50000 200 0.05 --out ${vcf.simpleName}_pruned_variants --threads ${task.cpus} --memory 12000
+    plink2 --vcf $vcf --vcf-half-call h --extract ${vcf.simpleName}_pruned_variants.prune.in --make-bed --out ${vcf.simpleName}_pruned
+    plink2 -bfile ${vcf.simpleName}_pruned --pca ${params.n_geno_pcs} header tabs
+    cat plink.eigenvec \\
+        | sed '1s/IID/genotype_id/' \\
+        | sed '1s/PC/geno_PC/g' \\
+        | csvtk cut -t -f -"FID" \\
+        | csvtk transpose -t > ${condition}.geno.pca
+    head -n ${params.n_pheno_pcs + 1} $phenotype_pca > ${condition}.covariates.txt    
     set +o pipefail; tail -n+2 ${condition}.geno.pca | head -n ${params.n_geno_pcs} >> ${condition}.covariates.txt
     """
 }
