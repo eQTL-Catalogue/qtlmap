@@ -212,7 +212,7 @@ process create_QTLTools_input {
     output: // set can be used to pass condition val and file as tuple to the channel 
     file "*.bed" into condition_beds mode flatten
     file "*.sample_names.txt" into condition_samplenames mode flatten
-    file "*.phenoPCA.tsv" into condition_PCAs
+    file "*.phenoPCA.tsv" into pheno_PCAs mode flatten
 
     script:
     """
@@ -259,8 +259,8 @@ process extract_samples {
     file genotype_vcf from genotype_vcf_extract_samples.collect()
 
     output:
-    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca // vcfs_perform_pca, vcfs_run_nominal, vcfs_run_permutation
-    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz.csi") into vcf_indexes //vcf_indexes_perform_pca, vcf_indexes_run_permutation, vcf_indexes_run_nominal
+    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca 
+    set val(sample_names.simpleName), file("${sample_names.simpleName}.vcf.gz.csi") into vcf_indexes 
 
     script:
     """
@@ -295,7 +295,7 @@ process extract_variant_info {
 }
 
 compressed_beds.join(compressed_bed_indexes).join(vcfs).join(vcf_indexes).into{ tuple_run_nominal; tuple_run_permutation }
-condition_PCAs.map { file -> [ file.simpleName, file] }.join(vcfs_perform_pca).set{ tuple_perform_pca }
+pheno_PCAs.map { file -> [ file.simpleName, file] }.join(vcfs_perform_pca).set{ tuple_perform_pca }
 
 /*
  * STEP 5 - Perform PCA on the genotype and phenotype data
