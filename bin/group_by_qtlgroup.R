@@ -20,7 +20,6 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_id"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "group_id"))
-  assertthat::assert_that(assertthat::has_name(phenotype_data, "gene_id"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "strand"))
   
   assertthat::assert_that(assertthat::has_name(sample_meta_qtlgroup, "sample_id"))
@@ -47,7 +46,7 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
     expressed_genes = dplyr::filter(quantile_tpms, qtl_group == selected_qtl_group, median_tpm > tpm_thres)
     
     #Find expressed phenotyes
-    expressed_phenotypes = dplyr::filter(phenotype_data, gene_id %in% expressed_genes$phenotype_id)
+    expressed_phenotypes = dplyr::filter(phenotype_data, phenotype_id %in% expressed_genes$phenotype_id)
     
     #Filter count matrix by expressed phenotypes
     count_matrix_group = dplyr::filter(count_matrix_group, phenotype_id %in% expressed_phenotypes$phenotype_id)
