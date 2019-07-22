@@ -20,6 +20,7 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_id"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "group_id"))
+  assertthat::assert_that(assertthat::has_name(phenotype_data, "gene_id"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "strand"))
   
   assertthat::assert_that(assertthat::has_name(sample_meta_qtlgroup, "sample_id"))
@@ -41,18 +42,27 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   
   if(!is.null(quantile_tpms)){
     message("Filter count matrix by quntile TPMs")
+    
+    #Check that required columns exist
+    assertthat::assert_that(assertthat::has_name(quantile_tpms, "qtl_group"))
+    assertthat::assert_that(assertthat::has_name(quantile_tpms, "median_tpm"))
+    assertthat::assert_that(assertthat::has_name(quantile_tpms, "phenotype_id"))
+    
     #Find expressed genes
     selected_qtl_group = sample_meta_qtlgroup$qtl_group[1]
-    expressed_genes = dplyr::filter(quantile_tpms, qtl_group == selected_qtl_group, median_tpm > tpm_thres)
+    not_expressed_genes = dplyr::filter(quantile_tpms, qtl_group == selected_qtl_group, median_tpm < tpm_thres)
     
     #Find expressed phenotyes
-    expressed_phenotypes = dplyr::filter(phenotype_data, phenotype_id %in% expressed_genes$phenotype_id)
-    
+    expressed_phenotypes = setdiff(phenotype_data$gene_id, not_expressed_genes$phenotype_id)
+    print(length(expressed_phenotypes))
+
     #Filter count matrix by expressed phenotypes
-    count_matrix_group = dplyr::filter(count_matrix_group, phenotype_id %in% expressed_phenotypes$phenotype_id)
+    count_matrix_group = dplyr::filter(count_matrix_group, phenotype_id %in% expressed_phenotypes)
   }
   
   pheno_data_filtered <- pheno_data %>% dplyr::filter(phenotype_id %in% count_matrix_group$phenotype_id)
+  print(head(pheno_data_filtered))
+  print(dim(pheno_data_filtered))
   
   #Make QTLtools phenotype table
   res = count_matrix_group %>%
