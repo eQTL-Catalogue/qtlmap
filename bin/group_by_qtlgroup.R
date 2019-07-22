@@ -9,7 +9,7 @@ saveQTLToolsMatrices <- function(data_list, output_dir, file_suffix = "bed", col
   for (sn in names(data_list)){
     file_path = file.path(output_dir, paste(sn, file_suffix, sep = "."))
     message(file_path)
-    message(paste0("Dimensions of the output file are: ", paste(dim(data_list[[sn]]))))
+    message(paste0("Dimensions of the output file are: ", paste(dim(data_list[[sn]]), collapse = " ")))
     write.table(data_list[[sn]], file_path, sep = "\t", quote = FALSE, row.names = FALSE, col.names = col_names)
   }
 }
