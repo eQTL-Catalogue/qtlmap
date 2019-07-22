@@ -14,7 +14,7 @@ saveQTLToolsMatrices <- function(data_list, output_dir, file_suffix = "bed", col
 }
 
 # divide count_matrix according to sample_metadata file of each qtlgroup
-convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_data, quantile_tpms = NULL, tpm_thres = 1){
+convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_data, quantile_tpms = NULL, tpm_thres = 0.1){
   #Make sure that all required columns are present
   assertthat::assert_that(assertthat::has_name(phenotype_data, "chromosome"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
@@ -240,7 +240,9 @@ sample_meta_qtlgroup_df_list = purrr::map(group_list, ~sample_metadata[sample_me
 qtltools_list = purrr::map(sample_meta_qtlgroup_df_list, 
                            ~convertDFtoQTLtools(sample_meta_qtlgroup = ., 
                                                 count_matrix = count_matrix_cis_filter, 
-                                                phenotype_data = phenotype_data))
+                                                phenotype_data = phenotype_data,
+                                                quantile_tpms = quantile_tpms, 
+                                                tpm_thres = 1))
 
 message(" ## Generating QTLgrouped files ")
 saveQTLToolsMatrices(qtltools_list, output_dir = output_dir, file_suffix = "bed")
