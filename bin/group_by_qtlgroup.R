@@ -8,7 +8,8 @@ saveQTLToolsMatrices <- function(data_list, output_dir, file_suffix = "bed", col
   #Save each matrix as a separate txt file
   for (sn in names(data_list)){
     file_path = file.path(output_dir, paste(sn, file_suffix, sep = "."))
-    print(file_path)
+    message(file_path)
+    message(paste0("Dimensions of the output file are: ", dim(data_list[[sn]])))
     write.table(data_list[[sn]], file_path, sep = "\t", quote = FALSE, row.names = FALSE, col.names = col_names)
   }
 }
@@ -50,26 +51,26 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
     
     #Find expressed genes
     selected_qtl_group = sample_meta_qtlgroup$qtl_group[1]
-    print(selected_qtl_group)
     not_expressed_genes = dplyr::filter(quantile_tpms, qtl_group == selected_qtl_group, median_tpm < tpm_thres)
     
     #Find expressed phenotyes
     expressed_phenotypes = setdiff(phenotype_data$gene_id, not_expressed_genes$phenotype_id)
-    print(length(expressed_phenotypes))
 
     #Filter count matrix by expressed phenotypes
     count_matrix_group = dplyr::filter(count_matrix_group, phenotype_id %in% expressed_phenotypes)
   }
   
-  pheno_data_filtered <- pheno_data %>% dplyr::filter(phenotype_id %in% count_matrix_group$phenotype_id)
-  print(head(pheno_data_filtered))
-  print(dim(pheno_data_filtered))
   
+  pheno_data_filtered <- pheno_data %>% dplyr::filter(phenotype_id %in% count_matrix_group$phenotype_id)
+
   #Make QTLtools phenotype table
   res = count_matrix_group %>%
     dplyr::select(phenotype_id, dplyr::everything()) %>%
     dplyr::left_join(pheno_data_filtered, ., by = "phenotype_id") %>%
     dplyr::arrange()
+  
+  message("Exclude phenotypes with zero variance")
+  print(res(1:10,1:10))
   
   return(res)
 }
@@ -137,7 +138,7 @@ option_list <- list(
   optparse::make_option(c("-v", "--variant-info"), type="character", default=NULL,
               help="Variant information file path.", metavar = "type"),
   optparse::make_option(c("-t", "--tpm_file"), type="character", default=NULL,
-                        help="File containing the 95% quantile TPM values for each gene in each qtl group.", metavar = "type"),
+                        help="File containing the 95% quantile TPM values for each gene in each qtl group (phenotype_id, qtl_group, median_tpm).", metavar = "type"),
   optparse::make_option(c("-o", "--outdir"), type="character", default="./QTLTools_input_files",
               help="Path to the output directory.", metavar = "type"),
   optparse::make_option(c("-c","--cisdistance"), type="integer", default=1000000, 
@@ -242,9 +243,9 @@ qtltools_list = purrr::map(sample_meta_qtlgroup_df_list,
                                                 count_matrix = count_matrix_cis_filter, 
                                                 phenotype_data = phenotype_data,
                                                 quantile_tpms = quantile_tpms, 
-                                                tpm_thres = 1))
+                                                tpm_thres = 0.1))
 
-message(" ## Generating QTLgrouped files ")
+message(" ## Generating BED files split by qtl_group ")
 saveQTLToolsMatrices(qtltools_list, output_dir = output_dir, file_suffix = "bed")
 
 #Extract sample names
