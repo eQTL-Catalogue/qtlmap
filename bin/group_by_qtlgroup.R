@@ -70,9 +70,9 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
     dplyr::arrange()
   
   message("Exclude phenotypes with zero variance")
-  matrix = as.matrix(res[,-(1:6)])
-  var_vector = apply(matrix, 1, var)
-  print(length(sd))
+  mat = as.matrix(res[,-(1:6)])
+  var_vector = apply(matr, 1, var)
+  print(length(var_vector))
   res = res[var_vector > 0,]
 
   return(res)
