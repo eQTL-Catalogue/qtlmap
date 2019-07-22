@@ -9,7 +9,7 @@ saveQTLToolsMatrices <- function(data_list, output_dir, file_suffix = "bed", col
   for (sn in names(data_list)){
     file_path = file.path(output_dir, paste(sn, file_suffix, sep = "."))
     message(file_path)
-    message(paste0("Dimensions of the output file are: ", dim(data_list[[sn]])))
+    message(paste0("Dimensions of the output file are: ", paste(dim(data_list[[sn]]))))
     write.table(data_list[[sn]], file_path, sep = "\t", quote = FALSE, row.names = FALSE, col.names = col_names)
   }
 }
@@ -70,7 +70,7 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
     dplyr::arrange()
   
   message("Exclude phenotypes with zero variance")
-  matrix = as.matrix(res[-(1:6),])
+  matrix = as.matrix(res[,-(1:6)])
   var_vector = apply(matrix, 1, var)
   print(length(sd))
   res = res[var_vector > 0,]
