@@ -14,7 +14,7 @@ saveQTLToolsMatrices <- function(data_list, output_dir, file_suffix = "bed", col
 }
 
 # divide count_matrix according to sample_metadata file of each qtlgroup
-convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_data, quantile_tpms = NULL, tpm_thres = 0.1){
+convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_data, quantile_tpms = NULL, tpm_thres = 1){
   #Make sure that all required columns are present
   assertthat::assert_that(assertthat::has_name(phenotype_data, "chromosome"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
@@ -50,6 +50,7 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
     
     #Find expressed genes
     selected_qtl_group = sample_meta_qtlgroup$qtl_group[1]
+    print(selected_qtl_group)
     not_expressed_genes = dplyr::filter(quantile_tpms, qtl_group == selected_qtl_group, median_tpm < tpm_thres)
     
     #Find expressed phenotyes
@@ -168,13 +169,13 @@ message(paste0("tpm_file: ", tpm_file))
 
 
 message(" ## Reading gene metadata file")
-phenotype_data <- utils::read.delim(phenotype_meta_path, quote = "", header = TRUE) %>% base::as.data.frame()
+phenotype_data <- utils::read.delim(phenotype_meta_path, quote = "", header = TRUE, stringsAsFactors = FALSE) %>% base::as.data.frame()
 
 message(" ## Reading sample metadata file")
-sample_metadata <- utils::read.delim(sample_meta_path, quote = "", header = TRUE) %>% base::as.data.frame()
+sample_metadata <- utils::read.delim(sample_meta_path, quote = "", header = TRUE, stringsAsFactors = FALSE) %>% base::as.data.frame()
 
 message(" ## Reading expression matrix")
-count_matrix <- utils::read.delim(expression_matrix_path, quote = "", header = TRUE) %>% base::as.data.frame() 
+count_matrix <- utils::read.delim(expression_matrix_path, quote = "", header = TRUE, stringsAsFactors = FALSE) %>% base::as.data.frame() 
 
 message(" ## Importing variant info")
 var_info = importVariantInformation(variant_info_path)
@@ -192,6 +193,7 @@ assertthat::assert_that(assertthat::has_name(phenotype_data, "chromosome"))
 assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
 assertthat::assert_that(assertthat::has_name(phenotype_data, "strand"))
 assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_id"))
+assertthat::assert_that(assertthat::has_name(phenotype_data, "gene_id"))
 
 #Check variant information
 assertthat::assert_that(assertthat::has_name(var_info, "chr"))
