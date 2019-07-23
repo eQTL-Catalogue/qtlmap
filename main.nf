@@ -144,6 +144,7 @@ summary['Expression Matrix']    = params.expression_matrix
 summary['Phenotype Metadata']   = params.phenotype_metadata
 summary['Sample Metadata']      = params.sample_metadata
 summary['Genotype VCF file']    = params.genotype_vcf
+summary['TPM file']             = params.tpm_file
 summary['Cis window']           = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Is imputed']           = params.is_imputed
