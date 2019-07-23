@@ -163,6 +163,11 @@ cis_distance = opt$c
 cis_min_var = opt$m
 tpm_file = opt$t
 
+#Convert null string to NULL
+if(tpm_file == "null"){
+  tpm_file = NULL
+}
+
 message("------ Options parsed ------")
 message(paste0("gene_meta_path: ", phenotype_meta_path))
 message(paste0("sample_meta_path: ", sample_meta_path))
