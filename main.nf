@@ -118,6 +118,10 @@ if( workflow.profile == 'awsbatch') {
          .fromPath( params.genotype_vcf )
          .ifEmpty { exit 1, "Cannot find the genotype vcf file: ${params.genotype_vcf}\n" }
          .into { genotype_vcf_extract_variant_info; genotype_vcf_extract_samples }
+    Channel
+         .fromPath( params.tpm_file )
+         .ifEmpty { exit 1, "Cannot find any TPM file: ${params.tpm_file}\n" }
+         .set { tpm_file_create_QTLTools_input }
          
  }
 
@@ -210,6 +214,7 @@ process create_QTLTools_input {
     file sample_metadata from sample_metadata_create_QTLTools_input.collect()
     file phenotype_metadata from phenotype_metadata_create_QTLTools_input.collect()
     file study_variant_info from variant_info_create_QTLTools_input.collect()
+    file tpm_file from tpm_file_create_QTLTools_input.collect()
     
     output: // set can be used to pass condition val and file as tuple to the channel 
     file "*.bed" into condition_beds mode flatten
@@ -223,6 +228,7 @@ process create_QTLTools_input {
         -s "$sample_metadata" \\
         -e "$expression_matrix" \\
         -v "$study_variant_info" \\
+        -t "$tpm_file" \\
         -o "." \\
         -c ${params.cis_window} \\
         -m ${params.mincisvariant}
