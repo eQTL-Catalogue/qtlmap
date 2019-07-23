@@ -45,6 +45,7 @@ def helpMessage() {
       --mincisvariant               Minimum variants needed to be found in cis_window (default: 56)   
       --n_batches                   Number of parallel batches to run QTL Mapping per sample (default: 400)
       --is_imputed                  Is the genotype input file imputed? (default: true)
+      --run_permutation             Calculate permuation p-values for each phenotype group (group_id in the phenotype metadata file) (default: false)
 
     Other options:
       --outdir                      The output directory where the results will be saved
@@ -142,6 +143,7 @@ summary['Genotype VCF file']    = params.genotype_vcf
 summary['Cis window']           = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Is imputed']           = params.is_imputed
+summary['Permutation run']      = params.run_permutation
 summary['# of batches']         = params.n_batches
 summary['# of phenotype pcs']   = params.n_pheno_pcs
 summary['# of genotype pcs']    = params.n_geno_pcs
