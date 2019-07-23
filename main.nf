@@ -120,7 +120,7 @@ if( workflow.profile == 'awsbatch') {
          .into { genotype_vcf_extract_variant_info; genotype_vcf_extract_samples }
     Channel
          .fromPath( params.tpm_file )
-         .ifEmpty { exit 1, "Cannot find any TPM file: ${params.tpm_file}\n" }
+         .ifEmpty { exit 1, "Cannot find the TPM file: ${params.tpm_file}\n" }
          .set { tpm_file_create_QTLTools_input }
          
  }
