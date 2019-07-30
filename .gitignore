@@ -2,6 +2,7 @@
 work/
 work_old/
 data/
-results*/
+*results*/
 .DS_Store
 tests/test_data
+singularity*/
