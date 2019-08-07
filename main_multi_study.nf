@@ -141,6 +141,7 @@ summary['Cis window']           = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Is imputed']           = params.is_imputed
 summary['Permutation run']      = params.run_permutation
+summary['Nominal run']          = params.run_nominal
 summary['# of batches']         = params.n_batches
 summary['# of phenotype pcs']   = params.n_pheno_pcs
 summary['# of genotype pcs']    = params.n_geno_pcs
@@ -376,7 +377,9 @@ process merge_permutation_batches {
  */
 process run_nominal {
     tag "${study_qtl_group} - ${batch_index}/${params.n_batches}"
-    // publishDir "${params.outdir}/temp_batches", mode: 'copy'
+
+    when:
+    params.run_nominal
     
     input:
     each batch_index from 1..params.n_batches
@@ -396,7 +399,9 @@ process run_nominal {
  */
 process merge_nominal_batches {
     tag "${study_qtl_group}"
-    // publishDir "${params.outdir}/Nominal_merged", mode: 'copy'
+
+    when:
+    params.run_nominal
 
     input:
     set study_qtl_group, batch_file_names from batch_files_merge_nominal_batches.groupTuple(size: params.n_batches, sort: true)  
@@ -417,6 +422,9 @@ process sort_qtltools_output {
     tag "${study_qtl_group}"
     publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
 
+    when:
+    params.run_nominal
+
     input:
     set study_qtl_group, file(nominal_merged) from nominal_merged_tab_sort_qtltools_output
 
@@ -435,6 +443,9 @@ process sort_qtltools_output {
 process index_qtltools_output {
     tag "${study_qtl_group}"
     publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
+
+    when:
+    params.run_nominal
 
     input:
     set study_qtl_group, file(sorted_merged_nominal) from sorted_merged_nominal_index_qtltools_output
