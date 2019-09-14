@@ -28,17 +28,11 @@ def helpMessage() {
 
     nextflow run main.nf\
      -profile tartu_hpc\
-     --expression_matrix testdata/GEUVADIS_cqn.tsv\
-     --phenotype_metadata testdata/GEUVADIS_phenotype_metadata.tsv\
-     --sample_metadata testdata/GEUVADIS_sample_metadata.tsv\
-     --genotype_vcf testdata/GEUVADIS_genotypes.vcf.gz\
+     --studyFile testdata/multi_test.tsv\
      --is_imputed FALSE
 
     Mandatory arguments:
-      --expression_matrix           Path to phenotype matrix data (.tsv - normalized and quality controlled)
-      --phenotype_metadata          Path to phenotype metadata (.tsv)
-      --sample_metadata             Path to sample metadata (.tsv)
-      --genotype_vcf                Path to genotype (VCF) file 
+      --studyFile                   Path to the TSV file containing pipeline inputs (VCF, expression matrix, metadata)
 
     Options:
       --cis_window                  The window where to search for associated variants around the phenotype (default: 1000000)
@@ -46,6 +40,7 @@ def helpMessage() {
       --n_batches                   Number of parallel batches to run QTL Mapping per sample (default: 400)
       --is_imputed                  Does the genotype VCF file contain R2 value in the INFO field? (default: true)
       --run_permutation             Calculate permuation p-values for each phenotype group (group_id in the phenotype metadata file) (default: false)
+      --run_nominal                 Calculate nominal p-values for each phenotype group (group_id in the phenotype metadata file) (default: true)
 
     Other options:
       --outdir                      The output directory where the results will be saved
@@ -85,38 +80,14 @@ if( workflow.profile == 'awsbatch') {
 }
 
 /*
- * Create a channel for input read files
+ * Create a channel for input files
  */ 
-if(params.readPathsFile){
-    // study_name	count_matrix	pheno_meta	sample_meta	vcf
-    Channel.fromPath(params.readPathsFile)
-        .ifEmpty { error "Cannot find any readPathsFile file in: ${params.readPathsFile}" }
-        .splitCsv(header: true, sep: '\t', strip: true)
-        .map{row -> [ row.study_name, file(row.count_matrix), file(row.pheno_meta), file(row.sample_meta), file(row.vcf), file(row.tpm_file)]}
-        .set { genotype_vcf_extract_variant_info }
-} else {
-     Channel
-         .fromPath( params.expression_matrix)
-         .ifEmpty { exit 1, "Cannot find the expression matrix file: ${params.expression_matrix}\n" }
-         .set { expression_matrix_create_QTLTools_input}
-     Channel
-         .fromPath( params.sample_metadata )
-         .ifEmpty { exit 1, "Cannot find the sample metadata file: ${params.sample_metadata}\n" }
-         .set { sample_metadata_create_QTLTools_input}   
-    Channel
-         .fromPath( params.phenotype_metadata )
-         .ifEmpty { exit 1, "Cannot find the phenotype metadata file: ${params.phenotype_metadata}\n" }
-         .set { phenotype_metadata_create_QTLTools_input}
-    Channel
-         .fromPath( params.genotype_vcf )
-         .ifEmpty { exit 1, "Cannot find the genotype vcf file: ${params.genotype_vcf}\n" }
-         .into { genotype_vcf_extract_variant_info; genotype_vcf_extract_samples }
-    Channel
-         .fromPath( params.tpm_file )
-         .ifEmpty { exit 1, "Cannot find the TPM file: ${params.tpm_file}\n" }
-         .set { tpm_file_create_QTLTools_input }
-         
- }
+// study_name	count_matrix	pheno_meta	sample_meta	vcf tpm_file
+Channel.fromPath(params.studyFile)
+    .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.study_name, file(row.count_matrix), file(row.pheno_meta), file(row.sample_meta), file(row.vcf), file(row.tpm_file)]}
+    .set { genotype_vcf_extract_variant_info }
 
 // Header log info
 log.info """=======================================================
@@ -132,11 +103,7 @@ def summary = [:]
 summary['Pipeline Name']        = 'kerimoff/qtlmap'
 summary['Pipeline Version']     = workflow.manifest.version
 summary['Run Name']             = custom_runName ?: workflow.runName
-summary['Expression Matrix']    = params.expression_matrix
-summary['Phenotype Metadata']   = params.phenotype_metadata
-summary['Sample Metadata']      = params.sample_metadata
-summary['Genotype VCF file']    = params.genotype_vcf
-summary['TPM file']             = params.tpm_file
+summary['Study file']           = params.studyFile
 summary['Cis window']           = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Is imputed']           = params.is_imputed
