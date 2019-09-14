@@ -186,7 +186,7 @@ message(" ## Reading sample metadata file")
 sample_metadata <- utils::read.delim(sample_meta_path, quote = "", header = TRUE, stringsAsFactors = FALSE) %>% base::as.data.frame()
 
 message(" ## Reading expression matrix")
-count_matrix <- utils::read.delim(expression_matrix_path, quote = "", header = TRUE, stringsAsFactors = FALSE) %>% base::as.data.frame() 
+count_matrix <- utils::read.delim(expression_matrix_path, quote = "", header = TRUE, stringsAsFactors = FALSE, check.names = FALSE) %>% base::as.data.frame() 
 print(count_matrix[1:6,1:6])
 
 message(" ## Importing variant info")
