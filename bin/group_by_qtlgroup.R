@@ -142,7 +142,7 @@ option_list <- list(
               help="Expression matrix file path with gene phenotype-id in rownames and sample-is in columnnames", metavar = "type"),
   optparse::make_option(c("-v", "--variant-info"), type="character", default=NULL,
               help="Variant information file path.", metavar = "type"),
-  optparse::make_option(c("-t", "--tpm_file"), type="character", default=NULL,
+  optparse::make_option(c("-t", "--tpm_file"), type="character", default="null.txt",
                         help="File containing the 95% quantile TPM values for each gene in each qtl group (phenotype_id, qtl_group, median_tpm).", metavar = "type"),
   optparse::make_option(c("-o", "--outdir"), type="character", default="./QTLTools_input_files",
               help="Path to the output directory.", metavar = "type"),
@@ -193,7 +193,7 @@ message(" ## Importing variant info")
 var_info = importVariantInformation(variant_info_path)
 
 quantile_tpms = NULL
-if (!is.null(tpm_file)){
+if (tpm_file != "null.txt"){
   message(" ## Importing 95% quantile TPMs")
   quantile_tpms = read.table(tpm_file, header = T, stringsAsFactors = FALSE) %>% 
     dplyr::as_tibble()
