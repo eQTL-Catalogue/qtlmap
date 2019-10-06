@@ -27,6 +27,10 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   assertthat::assert_that(assertthat::has_name(sample_meta_qtlgroup, "sample_id"))
   assertthat::assert_that(assertthat::has_name(sample_meta_qtlgroup, "genotype_id"))
   
+  #Make sure that duplicate genotype ids are not present in sample metadata
+  max_genotype_id_count = max(table(sample_meta_qtlgroup$genotype_id))
+  assertthat::assert_that(max_genotype_id_count == 1)
+  
   #Make genePos table for QTLTools
   pheno_data = dplyr::arrange(phenotype_data, chromosome, phenotype_pos) %>%
     dplyr::transmute(chromosome, left = phenotype_pos, right = phenotype_pos + 1, phenotype_id, group_id, strand) %>%
@@ -154,6 +158,19 @@ option_list <- list(
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
 
+#Deubgging
+if(FALSE){
+  opt = list(
+    p = "debug/HumanHT-12_V4_Ensembl_96_phenotype_metadata.tsv.gz",
+    s = "debug/CEDAR.tsv",
+    e = "debug/CEDAR.HumanHT-12_V4_norm_exprs.tsv",
+    v = "debug/CEDAR_GRCh38.variant_information.txt.gz",
+    c = 1000000,
+    m = 5,
+    t = "debug/null.txt",
+    o = "./QTLTools_input_files")
+}
+
 phenotype_meta_path = opt$p
 sample_meta_path = opt$s
 expression_matrix_path = opt$e
@@ -162,11 +179,6 @@ output_dir = opt$o
 cis_distance = opt$c
 cis_min_var = opt$m
 tpm_file = opt$t
-
-#Convert null string to NULL
-if(tpm_file == "null"){
-  tpm_file = NULL
-}
 
 message("------ Options parsed ------")
 message(paste0("gene_meta_path: ", phenotype_meta_path))
@@ -251,7 +263,6 @@ count_df = dplyr::select(phenotype_data, phenotype_id, chromosome, phenotype_pos
 message(" ## Filtering variants for cis_min_var")
 phenotype_data <- phenotype_data[phenotype_data$phenotype_id %in% count_df$phenotype_id,]
 count_matrix_cis_filter <- count_matrix[count_matrix$phenotype_id %in% count_df$phenotype_id,]
-
 
 #Split the SE into list based on qtl_group
 message(" ## Grouping by qtlGroups")
