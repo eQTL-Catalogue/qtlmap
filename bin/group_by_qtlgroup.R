@@ -37,7 +37,7 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
     dplyr::rename("#chr" = "chromosome") %>%
     dplyr::mutate(strand = ifelse(strand == 1, "+", "-"))
   
-  #Exptract phenotype and rename columns according to genotype id
+  #Extract phenotype and rename columns according to genotype id
   count_matrix_group <- count_matrix[, colnames(count_matrix) %in% 
      c(sample_meta_qtlgroup$sample_id %>% as.character(), "phenotype_id")]
   match_index <- match(names(count_matrix_group), sample_meta_qtlgroup$sample_id)
@@ -65,7 +65,6 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
     #Filter count matrix by expressed phenotypes
     count_matrix_group = dplyr::filter(count_matrix_group, phenotype_id %in% expressed_phenotype_metadata$phenotype_id)
   }
-  
   
   pheno_data_filtered <- pheno_data %>% dplyr::filter(phenotype_id %in% count_matrix_group$phenotype_id)
 
@@ -146,8 +145,6 @@ option_list <- list(
               help="Expression matrix file path with gene phenotype-id in rownames and sample-is in columnnames", metavar = "type"),
   optparse::make_option(c("-v", "--variant-info"), type="character", default=NULL,
               help="Variant information file path.", metavar = "type"),
-  optparse::make_option(c("-t", "--tpm_file"), type="character", default="null.txt",
-                        help="File containing the 95% quantile TPM values for each gene in each qtl group (phenotype_id, qtl_group, median_tpm).", metavar = "type"),
   optparse::make_option(c("-o", "--outdir"), type="character", default="./QTLTools_input_files",
               help="Path to the output directory.", metavar = "type"),
   optparse::make_option(c("-c","--cisdistance"), type="integer", default=1000000, 
@@ -161,13 +158,12 @@ opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
 #Deubgging
 if(FALSE){
   opt = list(
-    p = "debug/HumanHT-12_V4_Ensembl_96_phenotype_metadata.tsv.gz",
-    s = "debug/CEDAR.tsv",
-    e = "debug/CEDAR.HumanHT-12_V4_norm_exprs.tsv",
-    v = "debug/CEDAR_GRCh38.variant_information.txt.gz",
+    p = "testdata/GEUVADIS_phenotype_metadata.tsv",
+    s = "testdata/GEUVADIS_sample_metadata.tsv",
+    e = "testdata/GEUVADIS_cqn.tsv",
+    v = "testdata/GEUVADIS_test_ge_LCL.variant_information.txt.gz",
     c = 1000000,
     m = 5,
-    t = "debug/null.txt",
     o = "./QTLTools_input_files")
 }
 
@@ -178,7 +174,6 @@ variant_info_path = opt$v
 output_dir = opt$o
 cis_distance = opt$c
 cis_min_var = opt$m
-tpm_file = opt$t
 
 message("------ Options parsed ------")
 message(paste0("gene_meta_path: ", phenotype_meta_path))
@@ -188,8 +183,6 @@ message(paste0("variant_info_path: ", variant_info_path))
 message(paste0("output_dir: ", output_dir))
 message(paste0("cis_distance: ", cis_distance))
 message(paste0("cis_min_var: ", cis_min_var))
-message(paste0("tpm_file: ", tpm_file))
-
 
 message(" ## Reading gene metadata file")
 phenotype_data <- utils::read.delim(phenotype_meta_path, quote = "", header = TRUE, stringsAsFactors = FALSE) %>% base::as.data.frame()
@@ -203,13 +196,6 @@ print(count_matrix[1:6,1:6])
 
 message(" ## Importing variant info")
 var_info = importVariantInformation(variant_info_path)
-
-quantile_tpms = NULL
-if (tpm_file != "null.txt"){
-  message(" ## Importing 95% quantile TPMs")
-  quantile_tpms = read.table(tpm_file, header = T, stringsAsFactors = FALSE) %>% 
-    dplyr::as_tibble()
-}
 
 #Check that all required columns are there
 #Check phenotype metadata
@@ -236,7 +222,6 @@ shared_samples = intersect(sample_metadata$sample_id, colnames(count_matrix)[-1]
 message(paste0("Number of samples included in the analysis: ", length(shared_samples)))
 sample_metadata = dplyr::filter(sample_metadata, sample_id %in% shared_samples)
 count_matrix = count_matrix[,c("phenotype_id", shared_samples)]
-
 
 message(" ## Making gene ranges")
 #Make GRanges objects

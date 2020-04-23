@@ -187,7 +187,7 @@ process create_QTLTools_input {
 
     script:
     """
-    Rscript $baseDir/bin/group_by_qtlgroup_V2.R \\
+    Rscript $baseDir/bin/group_by_qtlgroup.R \\
         -p "$phenotype_metadata" \\
         -s "$sample_metadata" \\
         -e "$expression_matrix" \\
