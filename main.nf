@@ -382,7 +382,7 @@ process merge_nominal_batches {
 
     script:
     """
-    cat ${batch_file_names.join(' ')} | csvtk space2tab -T | csvtk sep -H -t -f 2 -s "_" | bgzip > ${study_qtl_group}.nominal.tab.txt.gz
+    cat ${batch_file_names.join(' ')} | csvtk space2tab -T | csvtk sep -H -t -f 2 -s "_" | csvtk replace -t -H -f 10 -p ^chr | bgzip > ${study_qtl_group}.nominal.tab.txt.gz
     """
 }
 
