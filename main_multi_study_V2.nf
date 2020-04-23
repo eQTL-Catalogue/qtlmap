@@ -201,11 +201,14 @@ process compress_bed {
     set study_name, file(bed_file) from qtl_group_beds.transpose()
 
     output:
-    set val("${study_name}_${bed_file.simpleName}"), file("${bed_file}.gz"), file("${bed_file}.gz.tbi") into compressed_beds
+    set val("${study_name}_${bed_file.simpleName}"), file("${bed_file}.gz"), file("${bed_file}.gz.tbi"), file("${bed_file.baseName}.fastQTL.bed.gz"), file("${bed_file.baseName}.fastQTL.bed.gz.tbi") into compressed_beds
 
     script:
     """
-    bgzip $bed_file && tabix -p bed ${bed_file}.gz
+    bgzip ${bed_file} && tabix -p bed ${bed_file}.gz
+    
+    csvtk cut -C\$ -t -f -strand,-group_id ${bed_file}.gz | bgzip > ${bed_file.baseName}.fastQTL.bed.gz
+    tabix -p bed ${bed_file.baseName}.fastQTL.bed.gz
     """
 }
 
@@ -221,12 +224,12 @@ process extract_samples {
 
     output:
     set val("${study_name}_${sample_names.simpleName}"), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca, vcf_temp 
-    set val("${study_name}_${sample_names.simpleName}"), file("${sample_names.simpleName}.vcf.gz.csi") into vcf_indexes, vcf_index_temp
+    set val("${study_name}_${sample_names.simpleName}"), file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes, vcf_index_temp
 
     script:
     """
     bcftools view -S $sample_names $genotype_vcf -Oz -o ${sample_names.simpleName}.vcf.gz
-    bcftools index ${sample_names.simpleName}.vcf.gz
+    tabix -p vcf ${sample_names.simpleName}.vcf.gz
     """
 }
 
@@ -304,7 +307,7 @@ process run_permutation {
 
     input:
     each batch_index from 1..params.n_batches
-    set study_qtl_group, file(bed), file(bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_permutation.join(covariates_run_permutation)
+    set study_qtl_group, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_permutation.join(covariates_run_permutation)
 
     output:
     set val(study_qtl_group), file("${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_permutation_batches
@@ -349,14 +352,14 @@ process run_nominal {
     
     input:
     each batch_index from 1..params.n_batches
-    set study_qtl_group, file(bed), file(bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_nominal.join(covariates_run_nominal)
+    set study_qtl_group, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_nominal.join(covariates_run_nominal)
 
     output:
     set study_qtl_group, file("${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_nominal_batches
 
     script:
     """
-	QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window} --nominal 1
+	fastQTL --vcf $vcf --bed $fastqtl_bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window}
     """
 }
 
