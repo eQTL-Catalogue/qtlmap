@@ -236,9 +236,7 @@ sample_meta_qtlgroup_df_list = purrr::map(group_list, ~sample_metadata[sample_me
 qtltools_list = purrr::map(sample_meta_qtlgroup_df_list, 
                            ~convertDFtoQTLtools(sample_meta_qtlgroup = ., 
                                                 count_matrix = count_matrix_cis_filter, 
-                                                phenotype_data = phenotype_data,
-                                                quantile_tpms = quantile_tpms, 
-                                                tpm_thres = 1))
+                                                phenotype_data = phenotype_data))
 
 message(" ## Generating BED files split by qtl_group ")
 saveQTLToolsMatrices(qtltools_list, output_dir = output_dir, file_suffix = "bed")
