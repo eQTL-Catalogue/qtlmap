@@ -150,12 +150,12 @@ process extract_all_variant_info {
     script:
     if (params.is_imputed) {
         """
-        bcftools annotate --set-id 'chr%CHROM\_%POS\_%REF\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
+        bcftools annotate --set-id 'chr%CHROM\\_%POS\\_%REF\\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
         set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\t%R2\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
         """
     } else {
         """
-        bcftools annotate --set-id 'chr%CHROM\_%POS\_%REF\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
+        bcftools annotate --set-id 'chr%CHROM\\_%POS\\_%REF\\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
         set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
         """
     }
@@ -361,7 +361,11 @@ process run_nominal {
 
     script:
     """
-	fastQTL --vcf $vcf --bed $fastqtl_bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window}
+	fastQTL --vcf $vcf --bed $fastqtl_bed --cov $covariate \\
+        --chunk $batch_index ${params.n_batches} \\
+        --out ${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt \\
+        --window ${params.cis_window} \\
+        --ma-sample-threshold 1
     """
 }
 
@@ -404,7 +408,7 @@ process sort_qtltools_output {
 
     script:
     """
-    gzip -dc $nominal_merged | LANG=C sort -k9,9 -k10,10n -k11,11n -S11G --parallel=8 | bgzip > ${study_qtl_group}.nominal.sorted.txt.gz
+    gzip -dc $nominal_merged | LANG=C sort -k10,10 -k11,11n -S11G --parallel=8 | bgzip > ${study_qtl_group}.nominal.sorted.txt.gz
     """
 }
 
@@ -426,7 +430,7 @@ process index_qtltools_output {
 
     script:
     """
-    tabix -s9 -b10 -e11 -f $sorted_merged_nominal
+    tabix -s10 -b11 -e11 -f $sorted_merged_nominal
     """
 }
 
