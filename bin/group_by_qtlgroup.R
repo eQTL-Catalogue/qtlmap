@@ -15,7 +15,7 @@ saveQTLToolsMatrices <- function(data_list, output_dir, file_suffix = "bed", col
 }
 
 # divide count_matrix according to sample_metadata file of each qtlgroup
-convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_data, quantile_tpms = NULL, tpm_thres = 0.1){
+convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_data){
   #Make sure that all required columns are present
   assertthat::assert_that(assertthat::has_name(phenotype_data, "chromosome"))
   assertthat::assert_that(assertthat::has_name(phenotype_data, "phenotype_pos"))
@@ -44,27 +44,6 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   names(count_matrix_group)[!is.na(match_index)] <- as.character(sample_meta_qtlgroup$genotype_id[na.omit(match_index)])
   count_matrix_group[,names(count_matrix_group) != "phenotype_id"] <- 
     round(count_matrix_group[,names(count_matrix_group) != "phenotype_id"], 3) #Round to three digits
-  
-  if(!is.null(quantile_tpms)){
-    message("Filter count matrix by quntile TPMs")
-    
-    #Check that required columns exist
-    assertthat::assert_that(assertthat::has_name(quantile_tpms, "qtl_group"))
-    assertthat::assert_that(assertthat::has_name(quantile_tpms, "median_tpm"))
-    assertthat::assert_that(assertthat::has_name(quantile_tpms, "phenotype_id"))
-    
-    #Find expressed genes
-    selected_qtl_group = sample_meta_qtlgroup$qtl_group[1]
-    not_expressed_genes = dplyr::filter(quantile_tpms, qtl_group == selected_qtl_group, median_tpm < tpm_thres)
-    
-    #Find expressed phenotyes
-    expressed_phenotypes = setdiff(phenotype_data$gene_id, not_expressed_genes$phenotype_id)
-    message(paste0("Number of expressed genes included in the analysis: ", length(expressed_phenotypes)))
-    expressed_phenotype_metadata = dplyr::filter(phenotype_data, gene_id %in% expressed_phenotypes)
-
-    #Filter count matrix by expressed phenotypes
-    count_matrix_group = dplyr::filter(count_matrix_group, phenotype_id %in% expressed_phenotype_metadata$phenotype_id)
-  }
   
   pheno_data_filtered <- pheno_data %>% dplyr::filter(phenotype_id %in% count_matrix_group$phenotype_id)
 
