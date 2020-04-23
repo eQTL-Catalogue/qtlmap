@@ -34,13 +34,18 @@ def helpMessage() {
     Mandatory arguments:
       --studyFile                   Path to the TSV file containing pipeline inputs (VCF, expression matrix, metadata)
 
-    Options:
-      --cis_window                  The window where to search for associated variants around the phenotype (default: 1000000)
-      --mincisvariant               Minimum variants needed to be found in cis_window (default: 56)   
+    Executions:
       --n_batches                   Number of parallel batches to run QTL Mapping per sample, must exceed the number of chromosomes (default: 400)
       --is_imputed                  Does the genotype VCF file contain R2 value in the INFO field? (default: true)
       --run_permutation             Calculate permuation p-values for each phenotype group (group_id in the phenotype metadata file) (default: false)
       --run_nominal                 Calculate nominal p-values for each phenotype group (group_id in the phenotype metadata file) (default: true)
+      --n_permutations              Number of permutations to be performed per gene when run_permutation = true (default: 1000)
+
+    QTL mapping:
+      --cis_window                  The window where to search for associated variants around the phenotype (default: 1000000)
+      --n_geno_pcs                  Number of genotype matrix principal components included as covariates in QTL analysis (default: 6).
+      --n_pheno_pcs                 Number of phenotype matrix principal components included as covariates in QTL analysis (default: 6).
+      --mincisvariant               Minimal numner of variants needed to be found in cis_window of each phenotype (default: 5)   
 
     Other options:
       --outdir                      The output directory where the results will be saved
@@ -108,6 +113,7 @@ summary['Cis window']           = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
 summary['Is imputed']           = params.is_imputed
 summary['Permutation run']      = params.run_permutation
+summary['# of permutations']    = params.n_permutations
 summary['Nominal run']          = params.run_nominal
 summary['# of batches']         = params.n_batches
 summary['# of phenotype PCs']   = params.n_pheno_pcs
@@ -316,7 +322,7 @@ process run_permutation {
 
     script:
     """
-    QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window} --permute 1000 --grp-best
+    QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window} --permute ${params.n_permutations} --grp-best
     """
 }
 
@@ -386,12 +392,17 @@ process merge_nominal_batches {
 
     script:
     """
-    cat ${batch_file_names.join(' ')} | csvtk space2tab -T | csvtk sep -H -t -f 2 -s "_" | csvtk replace -t -H -f 10 -p ^chr | bgzip > ${study_qtl_group}.nominal.tab.txt.gz
+    cat ${batch_file_names.join(' ')} | \\
+        csvtk space2tab -T | \\
+        csvtk sep -H -t -f 2 -s "_" | \\
+        csvtk replace -t -H -f 10 -p ^chr | \\
+        csvtk cut -t -f1,10,11,12,13,2,4,5,6,7,8,9 | \\
+        bgzip > ${study_qtl_group}.nominal.tab.txt.gz
     """
 }
 
 /*
- * STEP 11 - Add SNP coordinates to QTLTools output file
+ * STEP 11 - Sort fastQTL nominal pass outout and add header
  */
 process sort_qtltools_output {
     tag "${study_qtl_group}"
@@ -408,7 +419,9 @@ process sort_qtltools_output {
 
     script:
     """
-    gzip -dc $nominal_merged | LANG=C sort -k10,10 -k11,11n -S11G --parallel=8 | bgzip > ${study_qtl_group}.nominal.sorted.txt.gz
+    gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S11G --parallel=8 | \\
+        csvtk add-header -t -n molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se | \\
+        bgzip > ${study_qtl_group}.nominal.sorted.txt.gz
     """
 }
 
@@ -430,7 +443,7 @@ process index_qtltools_output {
 
     script:
     """
-    tabix -s10 -b11 -e11 -f $sorted_merged_nominal
+    tabix -s2 -b3 -e3 -S1 -f $sorted_merged_nominal
     """
 }
 
