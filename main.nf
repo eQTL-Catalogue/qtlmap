@@ -37,7 +37,7 @@ def helpMessage() {
     Options:
       --cis_window                  The window where to search for associated variants around the phenotype (default: 1000000)
       --mincisvariant               Minimum variants needed to be found in cis_window (default: 56)   
-      --n_batches                   Number of parallel batches to run QTL Mapping per sample (default: 400)
+      --n_batches                   Number of parallel batches to run QTL Mapping per sample, must exceed the number of chromosomes (default: 400)
       --is_imputed                  Does the genotype VCF file contain R2 value in the INFO field? (default: true)
       --run_permutation             Calculate permuation p-values for each phenotype group (group_id in the phenotype metadata file) (default: false)
       --run_nominal                 Calculate nominal p-values for each phenotype group (group_id in the phenotype metadata file) (default: true)
@@ -135,7 +135,7 @@ log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
 /*
- * STEP 0 - Extract variant information from VCF
+ * STEP 0 - Extract variant information from VCF and make sure that all variants are named as CHR_POS_REF_ALT
  */
 process extract_all_variant_info {
     tag "${study_name}"
@@ -145,16 +145,18 @@ process extract_all_variant_info {
     set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(tpm_file) from genotype_vcf_extract_variant_info
     
     output:
-    set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file("${vcf.simpleName}.variant_information.txt.gz"), file(tpm_file) into variant_info_create_QTLTools_input
+    set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file("${vcf.simpleName}_renamed.vcf.gz"), file("${vcf.simpleName}.variant_information.txt.gz"), file(tpm_file) into variant_info_create_QTLTools_input
 
     script:
     if (params.is_imputed) {
         """
-        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\t%R2\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
+        bcftools annotate --set-id 'chr%CHROM\_%POS\_%REF\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
+        set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\t%R2\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
         """
     } else {
         """
-        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
+        bcftools annotate --set-id 'chr%CHROM\_%POS\_%REF\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
+        set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
         """
     }
 }
@@ -380,7 +382,7 @@ process merge_nominal_batches {
 
     script:
     """
-    cat ${batch_file_names.join(' ')} | csvtk space2tab -T | bgzip > ${study_qtl_group}.nominal.tab.txt.gz
+    cat ${batch_file_names.join(' ')} | csvtk space2tab -T | csvtk sep -H -t -f 2 -s "_" | bgzip > ${study_qtl_group}.nominal.tab.txt.gz
     """
 }
 
