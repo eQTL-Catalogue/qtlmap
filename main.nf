@@ -206,10 +206,10 @@ process compress_bed {
     // publishDir "${params.outdir}/compressed_bed", mode: 'copy'
 
     input:
-    set study_name, file(bed_file) from qtl_group_beds.transpose()
+    set study_name, file(bed_file) from qtl_group_beds
 
     output:
-    set val("${study_name}_${bed_file.simpleName}"), file("${bed_file}.gz"), file("${bed_file}.gz.tbi"), file("${bed_file.baseName}.fastQTL.bed.gz"), file("${bed_file.baseName}.fastQTL.bed.gz.tbi") into compressed_beds
+    set study_name, file("${bed_file}.gz"), file("${bed_file}.gz.tbi"), file("${bed_file.baseName}.fastQTL.bed.gz"), file("${bed_file.baseName}.fastQTL.bed.gz.tbi") into compressed_beds
 
     script:
     """
@@ -224,15 +224,15 @@ process compress_bed {
  * STEP 3 - Extract samples from vcf
  */
 process extract_samples {
-    tag "${study_name}_${sample_names.simpleName}"
+    tag "${study_name}"
     // publishDir "${params.outdir}/vcf", mode: 'copy'
 
     input:
-    set study_name, file(genotype_vcf), file(sample_names) from qtl_group_samplenames.transpose()
+    set study_name, file(genotype_vcf), file(sample_names) from qtl_group_samplenames
 
     output:
-    set val("${study_name}_${sample_names.simpleName}"), file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca, vcf_temp 
-    set val("${study_name}_${sample_names.simpleName}"), file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes, vcf_index_temp
+    set study_name, file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca, vcf_temp 
+    set study_name, file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes, vcf_index_temp
 
     script:
     """
