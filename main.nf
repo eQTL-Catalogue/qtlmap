@@ -269,8 +269,7 @@ process extract_variant_info {
 }
 
 // Join phenotype_PCA and VCF file channels by {study_name}_{qtl_group} key
-qtl_group_pheno_PCAs.transpose()
-    .map { study_name, pheno_pca_file -> [ "${study_name}_${pheno_pca_file.simpleName}".toString(), pheno_pca_file ] }
+qtl_group_pheno_PCAs
     .join(vcfs_perform_pca)
     .set {tuple_perform_pca}
 
