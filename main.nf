@@ -29,7 +29,8 @@ def helpMessage() {
     nextflow run main.nf\
      -profile tartu_hpc\
      --studyFile testdata/multi_test.tsv\
-     --is_imputed FALSE
+     --is_imputed FALSE\
+     --n_batches 25
 
     Mandatory arguments:
       --studyFile                   Path to the TSV file containing pipeline inputs (VCF, expression matrix, metadata)
@@ -183,7 +184,7 @@ process create_QTLTools_input {
     output: 
     set study_name, file("*.bed") into qtl_group_beds
     set study_name, file(vcf), file("*.sample_names.txt") into qtl_group_samplenames
-    set study_name, file("*.phenoPCA.tsv") into qtl_group_pheno_PCAs, temp_qtl_group_pheno_PCAs
+    set study_name, file("*.phenoPCA.tsv") into qtl_group_pheno_PCAs
 
     script:
     """
@@ -231,8 +232,8 @@ process extract_samples {
     set study_name, file(genotype_vcf), file(sample_names) from qtl_group_samplenames
 
     output:
-    set study_name, file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca, vcf_temp 
-    set study_name, file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes, vcf_index_temp
+    set study_name, file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca 
+    set study_name, file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes
 
     script:
     """
