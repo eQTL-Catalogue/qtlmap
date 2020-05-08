@@ -1,0 +1,145 @@
+#!/usr/bin/env python
+import time
+import gzip
+import csv
+import io
+import os
+import argparse
+import pandas as pd
+
+def make_var_info_dict(csv_file_path):
+    df = pd.read_csv(csv_file_path, sep='\t', comment='#', header=None, dtype=str, names=['variant', 'type', 'r2'], usecols=[2, 5, 9], verbose=True)
+    df = df.assign(compact_info = df["type"].astype(str) + "," + df["r2"].astype(str)) 
+    res_dict = df.set_index('variant').to_dict()['compact_info']
+    return res_dict
+
+def make_var_rsid_dict(csv_file_path):
+    df = pd.read_csv(csv_file_path, sep='\t', header=None, dtype=str, names=['variant', 'rsid', 'type', 'r2'], usecols=[0, 1, 2, 3], verbose=True)
+    df['rsid'] = df.groupby(['variant'])['rsid'].transform(lambda x: '#'.join(x))
+    df.drop_duplicates()
+    df = df.assign(compact_info = df["rsid"].astype(str) + "," + df["type"].astype(str) + "," + df["r2"].astype(str))
+    res_dict = df.set_index('variant').to_dict()['compact_info']
+    # res_dict["variant"] = "rsid,type,r2"
+    return res_dict
+
+def make_pheno_meta_dict(csv_file_path):
+    df = pd.read_csv(csv_file_path, sep='\t', dtype=str, usecols=["phenotype_id","group_id","gene_id"], verbose=True)
+    df = df.assign(compact_info = df["group_id"].astype(str) + "#" + df["gene_id"].astype(str)) 
+    res_dict = df.set_index('phenotype_id').to_dict()['compact_info']
+    # res_dict["molecular_trait_id"] = "molecular_trait_object_id,gene_id"
+    return res_dict
+
+def make_median_tpm_dict(csv_file_path):
+    df = pd.read_csv(csv_file_path, sep='\t', dtype=str, usecols=["phenotype_id", "median_tpm"], verbose=True)
+    res_dict = df.set_index('phenotype_id').to_dict()['median_tpm']
+    # res_dict["molecular_trait_id"] = "median_tpm"
+    return res_dict
+
+def main():
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('-v', help='The variant info file', required=True)
+    argparser.add_argument('-r', help='The variant_id rsid map file', required=False)
+    argparser.add_argument('-s', help='The summary_statistics file', required=False)
+    argparser.add_argument('-p', help='The phenotype metadata file', required=False)
+    argparser.add_argument('-m', help='The median_tpm file', required=False)
+    argparser.add_argument('-o', help='The output file name', required=True)
+    
+    args = argparser.parse_args()
+    rsid_map = args.r
+    var_info = args.v
+    summ_stats = args.s
+    pheno_meta = args.p
+    median_tpm = args.m
+    outfile = args.o  
+
+    i=1
+    tic = time.process_time()  
+    f_w = gzip.GzipFile(outfile, "wb")
+    writer = csv.writer(io.TextIOWrapper(f_w, newline="", write_through=True), delimiter='\t')
+    if pheno_meta and summ_stats:
+        print("Building the var_rsid dictionary...")
+        tic = time.process_time()  
+        var_rsid_dict = make_var_rsid_dict(var_info)
+        print(dict(list(var_rsid_dict.items())[0:3]))  
+        toc = time.process_time()  
+        print("time of building var_rsid dict: ", toc - tic)
+
+        print("Building phenotype metadata dictionary...")
+        tic = time.process_time()  
+        pheno_meta_dict = make_pheno_meta_dict(pheno_meta)
+        print(dict(list(pheno_meta_dict.items())[0:3]))  
+        toc = time.process_time()  
+        print("time of building var_rsid dict: ", toc - tic)
+
+        print("Building median_tpm dictionary...")
+        tic = time.process_time()  
+        median_tpm_dict = make_median_tpm_dict(median_tpm)
+        print(dict(list(median_tpm_dict.items())[0:3]))  
+        toc = time.process_time()  
+        print("time of building var_rsid dict: ", toc - tic)
+
+        with gzip.open(summ_stats, "rt") as f:
+            col_names = ["molecular_trait_id","chromosome","position","ref","alt","variant","ma_samples","ac","an","maf","pvalue","beta","se","molecular_trait_object_id","gene_id","median_tpm","r2","type","rsid"]
+            writer.writerow(col_names)
+            for line in f:
+                if i%10000000 == 0:
+                    print(i)
+                i+=1
+                k = line.rstrip().split("\t")
+                line_wr = []
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,maf,pvalue,beta,se
+                k.insert(7, str(round(float(k[7])/float(k[8]))))
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se
+                
+                if k[0] in pheno_meta_dict:
+                    k.extend(pheno_meta_dict[k[0]].split("#")) # join pheno_metadata
+                else:
+                    k.extend(["NA","NA"]) # join NA's for unfound phenotype id
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se,molecular_trait_object_id,gene_id
+                
+                if k[0] in median_tpm_dict:
+                    k.append(median_tpm_dict[k[0]]) # join median_tpm
+                else:
+                    k.append("NA") # join NA's for unfound median_tpm phenotype_id
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se,molecular_trait_object_id,gene_id,median_tpm
+
+                if k[5] in var_rsid_dict:
+                    k.extend(var_rsid_dict[k[5]].split(",")[::-1]) # join r2, type, rsid
+                    if "#" in k[-1]: # check if there are multiple rsids
+                        rsids = k[-1].strip().split("#")
+                        for rsid in rsids:
+                            split_list = k[:-1]
+                            split_list.append(rsid)
+                            # line_wr.append(split_list)
+                            writer.writerow(split_list)   
+                    else:     
+                        writer.writerow(k)
+                        # line_wr.append(k)
+                else:
+                    k.extend(["NA","NA","NA"]) # add NA's for r2, type, rsid
+                    writer.writerow(k)
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se,molecular_trait_object_id,gene_id,median_tpm,r2,type,rsid
+    else:
+        print("Building the dictionary")
+        tic = time.process_time()  
+        var_dict = make_var_info_dict(var_info)
+        print(dict(list(var_dict.items())[0:3]))  
+        toc = time.process_time()  
+        print("time of building dict: ", toc - tic)
+        print("joining the files...")
+        with gzip.open(rsid_map, "rt") as f:
+            for line in f:
+                if i%100000000 == 0:
+                    print(i)
+                i+=1
+                k = line.rstrip().split("\t")
+                if k[0] in var_dict:
+                    k.extend(var_dict[k[0]].split(",")) # join variant info 
+                    writer.writerow(k)
+                
+    f_w.close()
+    toc = time.process_time()  
+    print("time of joining matrices: ", toc - tic)
+    
+if __name__ == '__main__':
+    main()        

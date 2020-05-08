@@ -95,6 +95,11 @@ Channel.fromPath(params.studyFile)
     .map{row -> [ row.qtl_subset, file(row.count_matrix), file(row.pheno_meta), file(row.sample_meta), file(row.vcf), file(row.tpm_file)]}
     .set { genotype_vcf_extract_variant_info }
 
+Channel.fromPath(params.varid_rsid_map_file)
+    .ifEmpty { error "Cannot find varid_rsid_map_file file in: ${params.varid_rsid_map_file}" }
+    .set { rsid_map_join_rsids }
+
+
 // Header log info
 log.info """=======================================================
                                           ,--./,-.
@@ -153,6 +158,7 @@ process extract_all_variant_info {
     
     output:
     set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file("${vcf.simpleName}_renamed.vcf.gz"), file("${vcf.simpleName}.variant_information.txt.gz"), file(tpm_file) into variant_info_create_QTLTools_input
+    set study_name, file("${vcf.simpleName}.variant_information.txt.gz"), file(phenotype_metadata), file(tpm_file) into var_info_join_rsids
 
     script:
     if (params.is_imputed) {
@@ -166,6 +172,29 @@ process extract_all_variant_info {
         set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
         """
     }
+}
+
+process join_rsids_var_info {
+    tag "${var_info.simpleName}"
+    publishDir "${params.outdir}/final/${study_name}", mode: 'copy'
+    
+    when:
+    params.run_nominal
+
+    input:
+    set study_name, file(var_info), file(phenotype_metadata), file(tpm_file) from var_info_join_rsids
+    file rsid_map from rsid_map_join_rsids.collect()
+
+    output:
+    set study_name, file("${var_info.simpleName}.var_info_rsid.tsv.gz"), file(phenotype_metadata), file(tpm_file) into var_info_format_summstats
+
+    script:
+    """
+    $baseDir/bin/join_variant_info.py \\
+        -v $var_info \\
+        -r $rsid_map \\
+        -o ${var_info.simpleName}.var_info_rsid.tsv.gz
+    """
 }
 
 /*
@@ -415,16 +444,41 @@ process sort_qtltools_output {
     set study_qtl_group, file(nominal_merged) from nominal_merged_tab_sort_qtltools_output
 
     output:
-    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.txt.gz") into sorted_merged_nominal_index_qtltools_output
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.txt.gz") into sorted_merged_nominal_reformat_summ_stats
 
     script:
     """
     gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S11G --parallel=8 | \\
-        csvtk add-header -t -n molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se | \\
         bgzip > ${study_qtl_group}.nominal.sorted.txt.gz
     """
+// csvtk add-header -t -n molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,maf,pvalue,beta,se | \\
 }
 
+sorted_merged_nominal_reformat_summ_stats.join(var_info_format_summstats).set { complete_join_summstats }
+
+process reformat_summstats {
+    tag "${study_qtl_group}"
+    publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
+
+    when:
+    params.run_nominal
+
+    input:
+    set study_qtl_group, file(summ_stats), file(var_info), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
+
+    output:
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.formatted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
+
+    script:
+    """
+    $baseDir/bin/join_variant_info.py \
+        -s $summ_stats \
+        -v $var_info \
+        -p $phenotype_metadata \
+        -m $median_tpm \
+        -o ${study_qtl_group}.nominal.sorted.formatted.tsv.gz
+    """
+}
 /*
  * STEP 12 - Tabix-index QTLtools output files
  */
@@ -436,17 +490,17 @@ process index_qtltools_output {
     params.run_nominal
 
     input:
-    set study_qtl_group, file(sorted_merged_nominal) from sorted_merged_nominal_index_qtltools_output
+    set study_qtl_group, file(sorted_merged_reformatted_nominal) from sorted_merged_reformatted_nominal_index_qtltools_output
 
     output:
     file "${study_qtl_group}.nominal.sorted.txt.gz.tbi"
 
     script:
     """
-    tabix -s2 -b3 -e3 -S1 -f $sorted_merged_nominal
+    tabix -s2 -b3 -e3 -S1 -f $sorted_merged_reformatted_nominal
     """
 }
-
+// csvtk add-header -t -n molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,maf,pvalue,beta,se | \\
 /*
  * Completion e-mail notification
  */
