@@ -176,7 +176,7 @@ process extract_all_variant_info {
 
 process join_rsids_var_info {
     tag "${var_info.simpleName}"
-    publishDir "${params.outdir}/final/${study_name}", mode: 'copy'
+    // publishDir "${params.outdir}/final/${study_name}", mode: 'copy'
     
     when:
     params.run_nominal
@@ -435,7 +435,7 @@ process merge_nominal_batches {
  */
 process sort_qtltools_output {
     tag "${study_qtl_group}"
-    publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
+    // publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
 
     when:
     params.run_nominal
@@ -444,14 +444,13 @@ process sort_qtltools_output {
     set study_qtl_group, file(nominal_merged) from nominal_merged_tab_sort_qtltools_output
 
     output:
-    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.txt.gz") into sorted_merged_nominal_reformat_summ_stats
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.norsid.tsv.gz") into sorted_merged_nominal_reformat_summ_stats
 
     script:
     """
     gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S11G --parallel=8 | \\
-        bgzip > ${study_qtl_group}.nominal.sorted.txt.gz
+        bgzip > ${study_qtl_group}.nominal.sorted.norsid.tsv.gz
     """
-// csvtk add-header -t -n molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,maf,pvalue,beta,se | \\
 }
 
 sorted_merged_nominal_reformat_summ_stats.join(var_info_format_summstats).set { complete_join_summstats }
@@ -467,7 +466,7 @@ process reformat_summstats {
     set study_qtl_group, file(summ_stats), file(var_info), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
 
     output:
-    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.formatted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
 
     script:
     """
@@ -476,7 +475,7 @@ process reformat_summstats {
         -v $var_info \
         -p $phenotype_metadata \
         -m $median_tpm \
-        -o ${study_qtl_group}.nominal.sorted.formatted.tsv.gz
+        -o ${study_qtl_group}.nominal.sorted.tsv.gz
     """
 }
 /*
@@ -493,14 +492,16 @@ process index_qtltools_output {
     set study_qtl_group, file(sorted_merged_reformatted_nominal) from sorted_merged_reformatted_nominal_index_qtltools_output
 
     output:
-    file "${study_qtl_group}.nominal.sorted.txt.gz.tbi"
+    file "${study_qtl_group}.nominal.sorted.tsv.gz.tbi"
 
     script:
     """
-    tabix -s2 -b3 -e3 -S1 -f $sorted_merged_reformatted_nominal
+    zcat $sorted_merged_reformatted_nominal | bgzip > ${study_qtl_group}.nominal.sorted.bgzip.tsv.gz
+    mv ${study_qtl_group}.nominal.sorted.bgzip.tsv.gz ${study_qtl_group}.nominal.sorted.tsv.gz
+    tabix -s2 -b3 -e3 -S1 -f ${study_qtl_group}.nominal.sorted.tsv.gz
     """
 }
-// csvtk add-header -t -n molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,maf,pvalue,beta,se | \\
+
 /*
  * Completion e-mail notification
  */
