@@ -30,6 +30,7 @@ def helpMessage() {
      -profile tartu_hpc\
      --studyFile testdata/multi_test.tsv\
      --is_imputed FALSE\
+     --varid_rsid_map_file testdata/varid_rsid_map.tsv.gz\
      --n_batches 25
 
     Mandatory arguments:
