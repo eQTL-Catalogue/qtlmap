@@ -202,10 +202,7 @@ process join_rsids_var_info {
  */
 process create_QTLTools_input {
     tag "${study_name}"
-    publishDir "${params.outdir}/", mode: 'copy',
-    saveAs: {filename ->
-        if (filename.indexOf(".phenoPCA.tsv") > 0) "PCA/${study_name}_${filename.substring(0, filename.indexOf("."))}/${study_name}_${filename}" else null
-    }
+    publishDir "${params.outdir}/PCA/${study_name}", mode: 'copy', pattern: "*.phenoPCA.tsv"
 
     input:
     set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(vcf_variant_info), file(tpm_file) from variant_info_create_QTLTools_input
