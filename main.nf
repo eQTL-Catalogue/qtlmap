@@ -433,7 +433,8 @@ process merge_nominal_batches {
  */
 process sort_qtltools_output {
     tag "${study_qtl_group}"
-    // publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
+    publishDir path: { !params.reformat_summstats ? "${params.outdir}/final/${study_qtl_group}" : params.outdir },
+            saveAs: { !params.reformat_summstats ? it : null }, mode: 'copy'
 
     when:
     params.run_nominal
@@ -458,7 +459,7 @@ process reformat_summstats {
     publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
 
     when:
-    params.run_nominal
+    params.run_nominal && params.reformat_summstats
 
     input:
     set study_qtl_group, file(summ_stats), file(var_info), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
