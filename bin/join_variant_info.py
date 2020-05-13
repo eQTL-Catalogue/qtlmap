@@ -71,12 +71,13 @@ def main():
         toc = time.process_time()  
         print("time of building var_rsid dict: ", toc - tic)
 
-        print("Building median_tpm dictionary...")
-        tic = time.process_time()  
-        median_tpm_dict = make_median_tpm_dict(median_tpm)
-        print(dict(list(median_tpm_dict.items())[0:3]))  
-        toc = time.process_time()  
-        print("time of building var_rsid dict: ", toc - tic)
+        if median_tpm!="null.txt":
+            print("Building median_tpm dictionary...")
+            tic = time.process_time()  
+            median_tpm_dict = make_median_tpm_dict(median_tpm)
+            print(dict(list(median_tpm_dict.items())[0:3]))  
+            toc = time.process_time()  
+            print("time of building var_rsid dict: ", toc - tic)
 
         with gzip.open(summ_stats, "rt") as f:
             col_names = ["molecular_trait_id","chromosome","position","ref","alt","variant","ma_samples","ac","an","maf","pvalue","beta","se","molecular_trait_object_id","gene_id","median_tpm","r2","type","rsid"]
@@ -97,7 +98,7 @@ def main():
                     k.extend(["NA","NA"]) # join NA's for unfound phenotype id
                 # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se,molecular_trait_object_id,gene_id
                 
-                if k[0] in median_tpm_dict:
+                if median_tpm!="null.txt" and k[0] in median_tpm_dict:
                     k.append(median_tpm_dict[k[0]]) # join median_tpm
                 else:
                     k.append("NA") # join NA's for unfound median_tpm phenotype_id
@@ -110,11 +111,9 @@ def main():
                         for rsid in rsids:
                             split_list = k[:-1]
                             split_list.append(rsid)
-                            # line_wr.append(split_list)
                             writer.writerow(split_list)   
                     else:     
                         writer.writerow(k)
-                        # line_wr.append(k)
                 else:
                     k.extend(["NA","NA","NA"]) # add NA's for r2, type, rsid
                     writer.writerow(k)
