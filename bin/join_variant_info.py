@@ -8,13 +8,13 @@ import argparse
 import pandas as pd
 
 def make_var_info_dict(csv_file_path):
-    df = pd.read_csv(csv_file_path, sep='\t', comment='#', header=None, dtype=str, names=['variant', 'type', 'r2'], usecols=[2, 5, 9], verbose=True)
+    df = pd.read_csv(csv_file_path, sep='\t', comment='#', header=None, dtype=str, names=['variant', 'type', 'r2'], usecols=[2, 5, 9], verbose=True, keep_default_na = False)
     df = df.assign(compact_info = df["type"].astype(str) + "," + df["r2"].astype(str)) 
     res_dict = df.set_index('variant').to_dict()['compact_info']
     return res_dict
 
 def make_var_rsid_dict(csv_file_path):
-    df = pd.read_csv(csv_file_path, sep='\t', header=None, dtype=str, names=['variant', 'rsid', 'type', 'r2'], usecols=[0, 1, 2, 3], verbose=True)
+    df = pd.read_csv(csv_file_path, sep='\t', header=None, dtype=str, names=['variant', 'rsid', 'type', 'r2'], usecols=[0, 1, 2, 3], verbose=True, keep_default_na = False)
     df['rsid'] = df.groupby(['variant'])['rsid'].transform(lambda x: '#'.join(x))
     df.drop_duplicates()
     df = df.assign(compact_info = df["rsid"].astype(str) + "," + df["type"].astype(str) + "," + df["r2"].astype(str))
