@@ -71,6 +71,12 @@ The most up-to-date usage information can be viewed with:
 nextflow run main.nf --help
 ```
 
+Nextflow itself depends on Java and `tartu_hpc` configuration profile further requires that Singularity is available in PATH. At the University of Tartu HPC, these can be loaded using:
+```bash
+module load java-1.8.0_40
+module load singularity/3.5.3
+```
+
 # Main arguments
 
 ## Mandatory Arguments
