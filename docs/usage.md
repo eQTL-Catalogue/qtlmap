@@ -5,10 +5,7 @@
 * [Introduction](#general-nextflow-info)
 * [Running the pipeline](#running-the-pipeline)
 * [Main arguments](#main-arguments)
-    * [`--expression_matrix`](#--expression_matrix)
-    * [`--phenotype_metadata`](#--phenotype_metadata)
-    * [`--sample_metadata`](#--sample_metadata)
-    * [`--genotype_vcf`](#--genotype_vcf)
+    * [`--studyFile`](#--studyFile)
     * [`--cis_window`](#--cis_window)
     * [`--mincisvariant`](#--mincisvariant)
     * [`--n_batches`](#--n_batches)
@@ -51,14 +48,14 @@ NXF_OPTS='-Xms1g -Xmx4g'
 ## Running the pipeline
 The typical command for running the pipeline is as follows:
 ```bash
-nextflow run kerimoff/qtlmap\
-     --expression_matrix testdata/GEUVADIS_cqn.tsv\
-     --phenotype_metadata testdata/GEUVADIS_phenotype_metadata.tsv\
-     --sample_metadata testdata/GEUVADIS_sample_metadata.tsv\
-     --genotype_vcf testdata/GEUVADIS_genotypes.vcf.gz
+nextflow run main.nf -profile tartu_hpc\
+   --studyFile testdata/multi_test.tsv\
+    --is_imputed FALSE\
+    --varid_rsid_map_file testdata/varid_rsid_map.tsv.gz\
+    --n_batches 25
 ```
 
-This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
+This will launch the pipeline with the `tartu_hpc` configuration profile. See below for more information about profiles.
 
 Note that the pipeline will create the following files in your working directory:
 
@@ -69,66 +66,37 @@ results         # Finished results (configurable, see below)
 # Other nextflow hidden files, eg. history of pipeline runs and old logs.
 ```
 
+The most up-to-date usage information can be viewed with:
+```bash
+nextflow run main.nf --help
+```
+
 # Main arguments
 
 ## Mandatory Arguments
-### `--expression_matrix`
-Use this to specify the location of your phenotype matrix file (.tsv). Should contain at least the following columns: **_phenotype_id_**
 
-For example:
+### `--studyFile`
+Use this to specify the location of the text file describing the locations of all required input files. Multiple rows of the studyFile can be used to run the qtlmap pipeline across many different cell types, conditions or phenotype types (gene expression, transcript usage, etc). The required columns of the studyFile are:
+1. _**qtl_subset**_ - unique identifer for the QTL analysis (e.g. name of the cell type, tissue or quantification method or any other parameter that is used to partition the data.
+1. _**count_matrix**_ - normalised phenotype matrix. The name of the first column should be **_phenotype_id_**, other columns should correspond to sample_ids.
+1. _**pheno_meta**_ - specifies the location of your phenotype metadata file (.tsv). Should contain at least the following columns: **_phenotype_id, chromosome, phenotype_pos, strand_**. The _**phenotype_pos**_ column is used to define the _cis_ window around each phenotype. 
+1. _**sample_meta**_ - specifies the location of your sample metadata file (.tsv). Should contain at least the following columns: **_sample_id, genotype_id, qtl_group_**
+1. _**vcf**_ - Genotype file used for QTL analysis. Sample ids of the VCF file should match the genotype_id column in the _**sample_meta**_ file. 
+1. _**tpm_file**_ - specifies the median TPM value of each phenotype in each _**qtl_group**_ (from _**sample_meta**_ file). These TPM values are not used in QTL analysis and are only merged into final summary statistics file as gene annotations. If the _**tpm_file**_ is not available, then this can be replaced by a dummy placeholder value 'null.txt'.
+
+See the section about [input files](docs/inputs_expl.md) for more details how the columns in different files related to each other. Example studyFile is available [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata/multi_test.tsv) and example input data can be seen [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata).
+
+Note that qtlmap uses the intersection of samples present in _**count_matrix_** and _**sample_meta_** for analysis. This means that if you wish to perform analysis only on a subset of the samples (e.g. females) then it is sufficient to filter the _**sample_meta_** file leaving the _**count_matrix**_ unchanged. 
 
 ```bash
-nextflow run main.nf --expression_matrix testdata/GEUVADIS_cqn.tsv
+nextflow run main.nf --studyFile testdata/multi_test.tsv
 ```
 
 ```groovy
 params {
-    expression_matrix = "$baseDir/testdata/GEUVADIS_cqn.tsv"
+    genotype_vcf = "$baseDir/testdata/multi_test.tsv"
 }
-```
 
-### `--phenotype_metadata`
-Use this to specify the location of your phenotype metadata file (.tsv). Should contain at least the following columns: **_phenotype_id, chromosome, phenotype_pos, strand_**
-
-For example:
-
-```bash
-nextflow run main.nf --phenotype_metadata testdata/GEUVADIS_phenotype_metadata.tsv
-```
-
-```groovy
-params {
-    phenotype_metadata = "$baseDir/testdata/GEUVADIS_phenotype_metadata.tsv"
-}
-```
-
-### `--sample_metadata`
-Use this to specify the location of your sample metadata file (.tsv). Should contain at least the following columns: **_sample_id, genotype_id, qtl_group_**
-
-For example:
-
-```bash
-nextflow run main.nf --sample_metadata testdata/GEUVADIS_sample_metadata.tsv
-```
-
-```groovy
-params {
-    sample_metadata = "$baseDir/testdata/GEUVADIS_sample_metadata.tsv"
-}
-```
-
-### `--genotype_vcf`
-Use this to specify the location of your genotype file (.vcf of .vcf.gz). For example:
-Data column names of the VCF file should correspond to the _**genotype_id**_ column values of sample_metadata. See [Input files explanations](docs/inputs_expl.md) for more details
-
-```bash
-nextflow run main.nf --genotype_vcf testdata/GEUVADIS_genotypes.vcf.gz
-```
-
-```groovy
-params {
-    genotype_vcf = "$baseDir/testdata/GEUVADIS_genotypes.vcf.gz"
-}
 ```
 ## Optional Arguments
 ### `--cis_window`
@@ -158,7 +126,7 @@ params {
 ```
 
 ### `--n_batches`
-Use this to specify the number of batches used in QTL mapping run. QTLTools will split the genome into this number of chunks and perform the run in a parallel manner. The default value is _**400**_
+Use this to specify the number of batches used in QTL mapping run. FastQTL/QTLTools will split the genome into this number of chunks and perform the run in a parallel manner. The default value is _**400**_. The number of batches has to exceed the number of chromosomes in the VCF file.
 
 ```bash
 nextflow run main.nf [mandatory arguments here] --n_batches 200
