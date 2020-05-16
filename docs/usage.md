@@ -86,7 +86,7 @@ Use this to specify the location of the text file describing the locations of al
 
 See the section about [input files](docs/inputs_expl.md) for more details how the columns in different files related to each other. Example studyFile is available [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata/multi_test.tsv) and example input data can be seen [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata).
 
-Note that qtlmap uses the intersection of samples present in _**count_matrix_** and _**sample_meta_** for analysis. This means that if you wish to perform analysis only on a subset of the samples (e.g. females) then it is sufficient to filter the _**sample_meta_** file leaving the _**count_matrix**_ unchanged. 
+Note that qtlmap uses the intersection of samples present in _**count_matrix**_ and _**sample_meta**_ for analysis. This means that if you wish to perform analysis only on a subset of the samples (e.g. females) then it is sufficient to filter the _**sample_meta**_ file leaving the _**count_matrix**_ unchanged. 
 
 ```bash
 nextflow run main.nf --studyFile testdata/multi_test.tsv
