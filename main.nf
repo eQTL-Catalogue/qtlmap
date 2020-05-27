@@ -47,7 +47,11 @@ def helpMessage() {
       --cis_window                  The window where to search for associated variants around the phenotype (default: 1000000)
       --n_geno_pcs                  Number of genotype matrix principal components included as covariates in QTL analysis (default: 6).
       --n_pheno_pcs                 Number of phenotype matrix principal components included as covariates in QTL analysis (default: 6).
-      --mincisvariant               Minimal numner of variants needed to be found in cis_window of each phenotype (default: 5)   
+      --mincisvariant               Minimal numner of variants needed to be found in cis_window of each phenotype (default: 5)
+    
+    Format results:
+      --reformat_summstats          Add rsid and median TPM columns to the nominal summary statistics files and perform additional formatting to make the files compatible with the eQTL Catalogue (default: true)
+      --varid_rsid_map_file         TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP.
 
     Other options:
       --outdir                      The output directory where the results will be saved
