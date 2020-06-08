@@ -451,7 +451,7 @@ process sort_qtltools_output {
 
     script:
     """
-    gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S11G --parallel=8 | \\
+    gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S11G --parallel=8 | uniq | \\
         bgzip > ${study_qtl_group}.nominal.sorted.norsid.tsv.gz
     """
 }
