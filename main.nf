@@ -460,7 +460,6 @@ sorted_merged_nominal_reformat_summ_stats.join(var_info_format_summstats).set { 
 
 process reformat_summstats {
     tag "${study_qtl_group}"
-    publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
 
     when:
     params.run_nominal && params.reformat_summstats
@@ -495,7 +494,7 @@ process index_qtltools_output {
     set study_qtl_group, file(sorted_merged_reformatted_nominal) from sorted_merged_reformatted_nominal_index_qtltools_output
 
     output:
-    file "${study_qtl_group}.nominal.sorted.tsv.gz.tbi"
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.tsv.gz"), file("${study_qtl_group}.nominal.sorted.tsv.gz.tbi") into final_output_ch
 
     script:
     """
