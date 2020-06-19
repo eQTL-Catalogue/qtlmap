@@ -156,7 +156,6 @@ log.info "========================================="
  */
 process extract_all_variant_info {
     tag "${study_name}"
-    // publishDir "${params.outdir}/final/${study_name}", mode: 'copy'
 
     input:
     set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(tpm_file) from genotype_vcf_extract_variant_info
@@ -181,7 +180,6 @@ process extract_all_variant_info {
 
 process join_rsids_var_info {
     tag "${var_info.simpleName}"
-    // publishDir "${params.outdir}/final/${study_name}", mode: 'copy'
     
     when:
     params.run_nominal
@@ -235,7 +233,6 @@ process create_QTLTools_input {
  */ 
 process compress_bed {
     tag "${study_name}_${bed_file.simpleName}"
-    // publishDir "${params.outdir}/compressed_bed", mode: 'copy'
 
     input:
     set study_name, file(bed_file) from qtl_group_beds
@@ -257,7 +254,6 @@ process compress_bed {
  */
 process extract_samples {
     tag "${study_name}"
-    // publishDir "${params.outdir}/vcf", mode: 'copy'
 
     input:
     set study_name, file(genotype_vcf), file(sample_names) from qtl_group_samplenames
@@ -280,7 +276,7 @@ compressed_beds.join(vcfs).join(vcf_indexes).into{ tuple_run_nominal; tuple_run_
  */
 process extract_variant_info {
     tag "${study_qtl_group}"
-    publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
+    publishDir "${params.outdir}/varinfo", mode: 'copy'
 
     input:
     set study_qtl_group, file(vcf) from vcfs_extract_variant_info
@@ -362,7 +358,7 @@ process run_permutation {
  */
 process merge_permutation_batches {
     tag "${study_qtl_group}"
-    publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
+    publishDir "${params.outdir}/sumstats", mode: 'copy'
     
     when:
     params.run_permutation
@@ -437,7 +433,7 @@ process merge_nominal_batches {
  */
 process sort_qtltools_output {
     tag "${study_qtl_group}"
-    publishDir path: { !params.reformat_summstats ? "${params.outdir}/final/${study_qtl_group}" : params.outdir },
+    publishDir path: { !params.reformat_summstats ? "${params.outdir}/sumstats" : params.outdir },
             saveAs: { !params.reformat_summstats ? it : null }, mode: 'copy'
 
     when:
@@ -485,7 +481,7 @@ process reformat_summstats {
  */
 process index_qtltools_output {
     tag "${study_qtl_group}"
-    publishDir "${params.outdir}/final/${study_qtl_group}", mode: 'copy'
+    publishDir "${params.outdir}/sumstats", mode: 'copy'
 
     when:
     params.run_nominal
