@@ -90,7 +90,7 @@ Use this to specify the location of the text file describing the locations of al
 1. _**vcf**_ - Genotype file used for QTL analysis. Sample ids of the VCF file should match the genotype_id column in the _**sample_meta**_ file. 
 1. _**tpm_file**_ - specifies the median TPM value of each phenotype in each _**qtl_group**_ (from _**sample_meta**_ file). These TPM values are not used in QTL analysis and are only merged into final summary statistics file as gene annotations. If the _**tpm_file**_ is not available, then this can be replaced by a dummy placeholder value 'null.txt'.
 
-See the section about [input files](docs/inputs_expl.md) for more details how the columns in different files related to each other. Example studyFile is available [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata/multi_test.tsv) and example input data can be seen [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata).
+See the section about [input files](inputs_expl.md) for more details how the columns in different files related to each other. Example studyFile is available [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata/multi_test.tsv) and example input data can be seen [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata).
 
 Note that qtlmap uses the intersection of samples present in _**count_matrix**_ and _**sample_meta**_ for analysis. This means that if you wish to perform analysis only on a subset of the samples (e.g. females) then it is sufficient to filter the _**sample_meta**_ file leaving the _**count_matrix**_ unchanged. 
 
