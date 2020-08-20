@@ -282,7 +282,7 @@ process extract_variant_info {
     set study_qtl_group, file(vcf) from vcfs_extract_variant_info
     
     output:
-    file "${study_qtl_group}.variant_information.txt.gz"
+    path "${study_qtl_group}.variant_information.txt.gz"
 
     script:
     if (params.is_imputed) {
@@ -307,16 +307,17 @@ qtl_group_pheno_PCAs
 process make_pca_covariates {
     tag "${study_qtl_group}"
     publishDir "${params.outdir}/PCA/${study_qtl_group}", mode: 'copy'
-
+    
     input:
     set study_qtl_group, file(phenotype_pca), file(vcf) from tuple_perform_pca
 
     output:
-    file "${study_qtl_group}.geno.pca*"
+    path "${study_qtl_group}.geno.pca*"
     set study_qtl_group, file("${study_qtl_group}.covariates.txt") into covariates_run_nominal, covariates_run_permutation
 
     script:
     """
+    ls -lrtah
     plink2 --vcf $vcf --vcf-half-call h --indep-pairwise 50000 200 0.05 --out ${study_qtl_group}_pruned_variants --threads ${task.cpus} --memory ${task.memory.mega}
     plink2 --vcf $vcf --vcf-half-call h --extract ${study_qtl_group}_pruned_variants.prune.in --make-bed --out ${study_qtl_group}_pruned
     plink2 -bfile ${study_qtl_group}_pruned --pca ${params.n_geno_pcs} header tabs
@@ -367,7 +368,7 @@ process merge_permutation_batches {
     set study_qtl_group, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
 
     output:
-    file "${study_qtl_group}.permuted.txt.gz"
+    path "${study_qtl_group}.permuted.txt.gz"
 
     script:
     """
@@ -382,19 +383,22 @@ process merge_permutation_batches {
  */
 process run_nominal {
     tag "${study_qtl_group} - ${batch_index}/${params.n_batches}"
-
+    //publishDir "$workDir/temp_batches/"
+    
     when:
     params.run_nominal
     
     input:
     each batch_index from 1..params.n_batches
-    set study_qtl_group, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_nominal.join(covariates_run_nominal)
+    tuple study_qtl_group, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_nominal.join(covariates_run_nominal)
 
     output:
-    set study_qtl_group, file("${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_nominal_batches
-
+    tuple study_qtl_group, file("${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_nominal_batches
+    path "${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt" into batch_files_merge_nominal
+    
     script:
     """
+    
 	fastQTL --vcf $vcf --bed $fastqtl_bed --cov $covariate \\
         --chunk $batch_index ${params.n_batches} \\
         --out ${study_qtl_group}.nominal.batch.${batch_index}.${params.n_batches}.txt \\
@@ -408,19 +412,23 @@ process run_nominal {
  */
 process merge_nominal_batches {
     tag "${study_qtl_group}"
-
+    
+    echo true
     when:
     params.run_nominal
-
+    maxRetries = 2
     input:
-    set study_qtl_group, batch_file_names from batch_files_merge_nominal_batches.groupTuple(size: params.n_batches, sort: true)  
+    tuple study_qtl_group, batch_file_names from batch_files_merge_nominal_batches.groupTuple(size: params.n_batches, sort: true)
+    path '*.txt' from batch_files_merge_nominal.collect()
 
     output:
-    set study_qtl_group, file("${study_qtl_group}.nominal.tab.txt.gz") into nominal_merged_tab_sort_qtltools_output
+    tuple study_qtl_group, file("${study_qtl_group}.nominal.tab.txt.gz") into nominal_merged_tab_sort_qtltools_output
 
     script:
     """
-    cat ${batch_file_names.join(' ')} | \\
+    ls -lrtah
+
+    cat *.txt | \\
         csvtk space2tab -T | \\
         csvtk sep -H -t -f 2 -s "_" | \\
         csvtk replace -t -H -f 10 -p ^chr | \\
