@@ -372,7 +372,7 @@ process merge_permutation_batches {
 
     script:
     """
-    cat ${batch_file_names.join(' '.replaceAll(/\/\S+\//,""))} | csvtk space2tab | sort -k11n -k12n > merged.txt
+    cat *.txt | csvtk space2tab | sort -k11n -k12n > merged.txt
     cut -f 1,6,7,8,10,11,12,18,19,20,21 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | bgzip > ${study_qtl_group}.permuted.txt.gz
     """
 }
