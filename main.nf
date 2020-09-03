@@ -347,7 +347,7 @@ process run_permutation {
 
     output:
     set val(study_qtl_group), file("${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_permutation_batches
-
+    path "${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt" into  batch_files_merge_permutation
     script:
     """
     QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window} --permute ${params.n_permutations} --grp-best
@@ -366,13 +366,13 @@ process merge_permutation_batches {
 
     input:
     set study_qtl_group, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
-
+    path '*.txt' from batch_files_merge_permutation.collect()
     output:
     path "${study_qtl_group}.permuted.txt.gz"
 
     script:
     """
-    cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
+    cat ${batch_file_names.join(' '.replaceAll(/\/\S+\//,""))} | csvtk space2tab | sort -k11n -k12n > merged.txt
     cut -f 1,6,7,8,10,11,12,18,19,20,21 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | bgzip > ${study_qtl_group}.permuted.txt.gz
     """
 }
