@@ -158,11 +158,11 @@ process extract_all_variant_info {
     tag "${study_name}"
 
     input:
-    tuple study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(tpm_file) from genotype_vcf_extract_variant_info
+    set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(tpm_file) from genotype_vcf_extract_variant_info
     
     output:
-    tuple study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file("${vcf.simpleName}_renamed.vcf.gz"), file("${vcf.simpleName}.variant_information.txt.gz"), file(tpm_file) into variant_info_create_QTLTools_input
-    tuple study_name, file("${vcf.simpleName}.variant_information.txt.gz"), file(phenotype_metadata), file(tpm_file) into var_info_join_rsids
+    set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file("${vcf.simpleName}_renamed.vcf.gz"), file("${vcf.simpleName}.variant_information.txt.gz"), file(tpm_file) into variant_info_create_QTLTools_input
+    set study_name, file("${vcf.simpleName}.variant_information.txt.gz"), file(phenotype_metadata), file(tpm_file) into var_info_join_rsids
 
     script:
     if (params.is_imputed) {
@@ -185,11 +185,11 @@ process join_rsids_var_info {
     params.run_nominal
 
     input:
-    tuple study_name, file(var_info), file(phenotype_metadata), file(tpm_file) from var_info_join_rsids
-    path rsid_map from rsid_map_join_rsids.collect()
+    set study_name, file(var_info), file(phenotype_metadata), file(tpm_file) from var_info_join_rsids
+    file rsid_map from rsid_map_join_rsids.collect()
 
     output:
-    tuple study_name, file("${var_info.simpleName}.var_info_rsid.tsv.gz"), file(phenotype_metadata), file(tpm_file) into var_info_format_summstats
+    set study_name, file("${var_info.simpleName}.var_info_rsid.tsv.gz"), file(phenotype_metadata), file(tpm_file) into var_info_format_summstats
 
     script:
     """
@@ -208,12 +208,12 @@ process create_QTLTools_input {
     publishDir "${params.outdir}/PCA/${study_name}", mode: 'copy', pattern: "*.phenoPCA.tsv"
 
     input:
-    tuple study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(vcf_variant_info), file(tpm_file) from variant_info_create_QTLTools_input
+    set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(vcf_variant_info), file(tpm_file) from variant_info_create_QTLTools_input
 
     output: 
-    tuple study_name, file("*.bed") into qtl_group_beds
-    tuple study_name, file(vcf), file("*.sample_names.txt") into qtl_group_samplenames
-    tuple study_name, file("*.phenoPCA.tsv") into qtl_group_pheno_PCAs
+    set study_name, file("*.bed") into qtl_group_beds
+    set study_name, file(vcf), file("*.sample_names.txt") into qtl_group_samplenames
+    set study_name, file("*.phenoPCA.tsv") into qtl_group_pheno_PCAs
 
     script:
     """
@@ -235,10 +235,10 @@ process compress_bed {
     tag "${study_name}_${bed_file.simpleName}"
 
     input:
-    tuple study_name, file(bed_file) from qtl_group_beds
+    set study_name, file(bed_file) from qtl_group_beds
 
     output:
-    tuple study_name, file("${bed_file}.gz"), file("${bed_file}.gz.tbi"), file("${bed_file.baseName}.fastQTL.bed.gz"), file("${bed_file.baseName}.fastQTL.bed.gz.tbi") into compressed_beds
+    set study_name, file("${bed_file}.gz"), file("${bed_file}.gz.tbi"), file("${bed_file.baseName}.fastQTL.bed.gz"), file("${bed_file.baseName}.fastQTL.bed.gz.tbi") into compressed_beds
 
     script:
     """
@@ -256,11 +256,11 @@ process extract_samples {
     tag "${study_name}"
 
     input:
-    tuple study_name, file(genotype_vcf), file(sample_names) from qtl_group_samplenames
+    set study_name, file(genotype_vcf), file(sample_names) from qtl_group_samplenames
 
     output:
-    tuple study_name, file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca 
-    tuple study_name, file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes
+    set study_name, file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca 
+    set study_name, file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes
 
     script:
     """
@@ -279,7 +279,7 @@ process extract_variant_info {
     publishDir "${params.outdir}/varinfo", mode: 'copy'
 
     input:
-    tuple study_qtl_group, file(vcf) from vcfs_extract_variant_info
+    set study_qtl_group, file(vcf) from vcfs_extract_variant_info
     
     output:
     path "${study_qtl_group}.variant_information.txt.gz"
@@ -309,11 +309,11 @@ process make_pca_covariates {
     publishDir "${params.outdir}/PCA/${study_qtl_group}", mode: 'copy'
     
     input:
-    tuple study_qtl_group, file(phenotype_pca), file(vcf) from tuple_perform_pca
+    set study_qtl_group, file(phenotype_pca), file(vcf) from tuple_perform_pca
 
     output:
     path "${study_qtl_group}.geno.pca*"
-    tuple study_qtl_group, file("${study_qtl_group}.covariates.txt") into covariates_run_nominal, covariates_run_permutation
+    set study_qtl_group, file("${study_qtl_group}.covariates.txt") into covariates_run_nominal, covariates_run_permutation
 
     script:
     """
@@ -343,11 +343,10 @@ process run_permutation {
 
     input:
     each batch_index from 1..params.n_batches
-    tuple study_qtl_group, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_permutation.join(covariates_run_permutation)
+    set study_qtl_group, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_permutation.join(covariates_run_permutation)
 
     output:
-    tuple val(study_qtl_group), file("${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_permutation_batches
-    path "${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt" into  batch_files_merge_permutation
+    set val(study_qtl_group), file("${study_qtl_group}.permutation.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_permutation_batches
 
     script:
     """
@@ -366,14 +365,14 @@ process merge_permutation_batches {
     params.run_permutation
 
     input:
-    tuple study_qtl_group, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
-    path '*.txt' from batch_files_merge_permutation.collect()
+    set study_qtl_group, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
+
     output:
     path "${study_qtl_group}.permuted.txt.gz"
 
     script:
     """
-    cat ${batch_file_names.join(' '.replaceAll(/\/\S+\//,""))} | csvtk space2tab | sort -k11n -k12n > merged.txt
+    cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
     cut -f 1,6,7,8,10,11,12,18,19,20,21 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | bgzip > ${study_qtl_group}.permuted.txt.gz
     """
 }
@@ -429,7 +428,7 @@ process merge_nominal_batches {
     """
     ls -lrtah
 
-    cat ${batch_file_names.join(' '.replaceAll(/\/\S+\//,""))} | \\
+    cat *.txt | \\
         csvtk space2tab -T | \\
         csvtk sep -H -t -f 2 -s "_" | \\
         csvtk replace -t -H -f 10 -p ^chr | \\
@@ -450,10 +449,10 @@ process sort_qtltools_output {
     params.run_nominal
 
     input:
-    tuple study_qtl_group, file(nominal_merged) from nominal_merged_tab_sort_qtltools_output
+    set study_qtl_group, file(nominal_merged) from nominal_merged_tab_sort_qtltools_output
 
     output:
-    tuple study_qtl_group, file("${study_qtl_group}.nominal.sorted.norsid.tsv.gz") into sorted_merged_nominal_reformat_summ_stats
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.norsid.tsv.gz") into sorted_merged_nominal_reformat_summ_stats
 
     script:
     """
@@ -471,10 +470,10 @@ process reformat_summstats {
     params.run_nominal && params.reformat_summstats
 
     input:
-    tuple study_qtl_group, file(summ_stats), file(var_info), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
+    set study_qtl_group, file(summ_stats), file(var_info), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
 
     output:
-    tuple study_qtl_group, file("${study_qtl_group}.nominal.sorted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
 
     script:
     """
@@ -497,10 +496,10 @@ process index_qtltools_output {
     params.run_nominal
 
     input:
-    tuple study_qtl_group, file(sorted_merged_reformatted_nominal) from sorted_merged_reformatted_nominal_index_qtltools_output
+    set study_qtl_group, file(sorted_merged_reformatted_nominal) from sorted_merged_reformatted_nominal_index_qtltools_output
 
     output:
-    tuple study_qtl_group, file("${study_qtl_group}.nominal.sorted.tsv.gz"), file("${study_qtl_group}.nominal.sorted.tsv.gz.tbi") into final_output_ch
+    set study_qtl_group, file("${study_qtl_group}.nominal.sorted.tsv.gz"), file("${study_qtl_group}.nominal.sorted.tsv.gz.tbi") into final_output_ch
 
     script:
     """
