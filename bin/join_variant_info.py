@@ -7,19 +7,26 @@ import os
 import argparse
 import pandas as pd
 
-def make_var_info_dict(csv_file_path):
-    df = pd.read_csv(csv_file_path, sep='\t', comment='#', header=None, dtype=str, names=['variant', 'type','ac','an','r2'], usecols=[2, 5, 6, 7, 9], verbose=True, keep_default_na = False)
+def make_var_info_rsid_dict(csv_file_path):
+    df = pd.read_csv(csv_file_path, sep='\t', comment='#', header=None, dtype=str, names=['variant', 'type','r2'], usecols=[2, 5, 9], verbose=True, keep_default_na = False)
     df = df.assign(compact_info = df["type"].astype(str) + "," + df["r2"].astype(str)) 
     res_dict = df.set_index('variant').to_dict()['compact_info']
     return res_dict
 
+def make_var_info_dict(csv_file_path):
+    df = pd.read_csv(csv_file_path, sep='\t', comment='#', header=None, dtype=str, names=['variant', 'type','ac','an','r2'], usecols=[2, 5, 6, 7, 9], verbose=True, keep_default_na = False)
+    df = df.assign(compact_info = df["type"].astype(str) + "," + df["ac"].astype(str) + "," + df["an"].astype(str) + "," + df["r2"].astype(str)) 
+    res_dict = df.set_index('variant').to_dict()['compact_info']
+    # res_dict["variant"] = "type,ac,an,r2"
+    return res_dict
+
 def make_var_rsid_dict(csv_file_path):
-    df = pd.read_csv(csv_file_path, sep='\t', header=None, dtype=str, names=['variant', 'rsid', 'type', 'ac', 'an', 'r2'], usecols=[0, 1, 2, 3, 4, 5], verbose=True, keep_default_na = False)
+    df = pd.read_csv(csv_file_path, sep='\t', header=None, dtype=str, names=['variant', 'rsid'], usecols=[0, 1], verbose=True, keep_default_na = False)
     df['rsid'] = df.groupby(['variant'])['rsid'].transform(lambda x: '#'.join(x))
     df.drop_duplicates()
-    df = df.assign(compact_info = df["rsid"].astype(str) + "," + df["type"].astype(str) + "," + df["r2"].astype(str))
+    df = df.assign(compact_info = df["rsid"].astype(str))
     res_dict = df.set_index('variant').to_dict()['compact_info']
-    # res_dict["variant"] = "rsid,type,r2"
+    # res_dict["variant"] = "rsid"
     return res_dict
 
 def make_pheno_meta_dict(csv_file_path):
@@ -121,7 +128,7 @@ def main():
     else:
         print("Building the dictionary")
         tic = time.process_time()  
-        var_dict = make_var_info_dict(var_info)
+        var_dict = make_var_info_rsid_dict(var_info)
         print(dict(list(var_dict.items())[0:3]))  
         toc = time.process_time()  
         print("time of building dict: ", toc - tic)
@@ -133,7 +140,6 @@ def main():
                 i+=1
                 k = line.rstrip().split("\t")
                 if k[0] in var_dict:
-                    k.extend(var_dict[k[0]].split(",")) # join variant info 
                     writer.writerow(k)
                 
     f_w.close()
