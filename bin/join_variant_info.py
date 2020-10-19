@@ -67,6 +67,7 @@ def main():
         print("Build the variant information dictionary...")
         tic = time.process_time()  
         var_info_dict = make_var_info_dict(var_info)
+        print(dict(list(var_rsid_dict.items())[0:5]))  
         toc = time.process_time()  
         print("time of building var_info dict: ", toc - tic)
 
@@ -104,7 +105,7 @@ def main():
                 # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se
 
                 if k[5] in var_info_dict:
-                    k.extect(var_info_dict[k[5]].split("#")) #join ac,an,type, and r2 values
+                    k.extend(var_info_dict[k[5]].split("#")) #join ac,an,type, and r2 values
                 # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se, ac, an, type, r2
                 
                 if k[0] in pheno_meta_dict:
