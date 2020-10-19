@@ -162,7 +162,7 @@ process extract_all_variant_info {
     
     output:
     set study_name, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file("${vcf.simpleName}_renamed.vcf.gz"), file("${vcf.simpleName}.variant_information.txt.gz"), file(tpm_file) into variant_info_create_QTLTools_input
-    set study_name, file("${vcf.simpleName}.variant_information.txt.gz"), file(phenotype_metadata), file(tpm_file) into var_info_join_rsids
+    set study_name, file(phenotype_metadata), file(tpm_file) into tpm_file_reformat_ch
 
     script:
     if (params.is_imputed) {
@@ -176,28 +176,6 @@ process extract_all_variant_info {
         set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
         """
     }
-}
-
-process join_rsids_var_info {
-    tag "${var_info.simpleName}"
-    
-    when:
-    params.run_nominal
-
-    input:
-    set study_name, file(var_info), file(phenotype_metadata), file(tpm_file) from var_info_join_rsids
-    file rsid_map from rsid_map_join_rsids.collect()
-
-    output:
-    set study_name, file("${var_info.simpleName}.var_info_rsid.tsv.gz"), file(phenotype_metadata), file(tpm_file) into var_info_format_summstats
-
-    script:
-    """
-    $baseDir/bin/join_variant_info.py \\
-        -v $var_info \\
-        -r $rsid_map \\
-        -o ${var_info.simpleName}.var_info_rsid.tsv.gz
-    """
 }
 
 /*
@@ -282,7 +260,7 @@ process extract_variant_info {
     set study_qtl_group, file(vcf) from vcfs_extract_variant_info
     
     output:
-    file "${study_qtl_group}.variant_information.txt.gz"
+    set study_qtl_group, file("${study_qtl_group}.variant_information.txt.gz") into var_info_join_rsids
 
     script:
     if (params.is_imputed) {
@@ -294,6 +272,28 @@ process extract_variant_info {
         set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${study_qtl_group}.variant_information.txt.gz
         """
     }
+}
+
+process join_rsids_var_info {
+    tag "${study_qtl_group}"
+    
+    when:
+    params.run_nominal
+
+    input:
+    set study_qtl_group, file(var_info) from var_info_join_rsids
+    file rsid_map from rsid_map_join_rsids.collect()
+
+    output:
+    set study_qtl_group, file("${var_info.simpleName}.var_info_rsid.tsv.gz") into var_info_format_summstats
+
+    script:
+    """
+    $baseDir/bin/join_variant_info.py \\
+        -v $var_info \\
+        -r $rsid_map \\
+        -o ${var_info.simpleName}.var_info_rsid.tsv.gz
+    """
 }
 
 // Join phenotype_PCA and VCF file channels by {study_name}_{qtl_group} key
@@ -453,7 +453,10 @@ process sort_qtltools_output {
     """
 }
 
-sorted_merged_nominal_reformat_summ_stats.join(var_info_format_summstats).set { complete_join_summstats }
+sorted_merged_nominal_reformat_summ_stats
+    .join(var_info_format_summstats)
+    .join(tpm_file_reformat_ch)
+    .set { complete_join_summstats }
 
 process reformat_summstats {
     tag "${study_qtl_group}"
