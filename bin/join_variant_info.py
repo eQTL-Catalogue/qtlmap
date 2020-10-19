@@ -67,7 +67,7 @@ def main():
         print("Build the variant information dictionary...")
         tic = time.process_time()  
         var_info_dict = make_var_info_dict(var_info)
-        print(dict(list(var_rsid_dict.items())[0:5]))  
+        print(dict(list(var_info_dict.items())[0:5]))  
         toc = time.process_time()  
         print("time of building var_info dict: ", toc - tic)
 
