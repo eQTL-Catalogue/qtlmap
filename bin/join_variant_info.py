@@ -15,7 +15,7 @@ def make_var_info_rsid_dict(csv_file_path):
 
 def make_var_info_dict(csv_file_path):
     df = pd.read_csv(csv_file_path, sep='\t', comment='#', header=None, dtype=str, names=['variant', 'type','ac','an','r2'], usecols=[2, 5, 6, 7, 9], verbose=True, keep_default_na = False)
-    df = df.assign(compact_info = df["type"].astype(str) + "," + df["ac"].astype(str) + "," + df["an"].astype(str) + "," + df["r2"].astype(str)) 
+    df = df.assign(compact_info = df["type"].astype(str) + "#" + df["ac"].astype(str) + "#" + df["an"].astype(str) + "#" + df["r2"].astype(str)) 
     res_dict = df.set_index('variant').to_dict()['compact_info']
     # res_dict["variant"] = "type,ac,an,r2"
     return res_dict
@@ -64,10 +64,16 @@ def main():
     f_w = gzip.GzipFile(outfile, "wb")
     writer = csv.writer(io.TextIOWrapper(f_w, newline="", write_through=True), delimiter='\t')
     if pheno_meta and summ_stats:
+        print("Build the variant information dictionary...")
+        tic = time.process_time()  
+        var_info_dict = make_var_info_dict(var_info)
+        toc = time.process_time()  
+        print("time of building var_info dict: ", toc - tic)
+
         print("Building the var_rsid dictionary...")
         tic = time.process_time()  
-        var_rsid_dict = make_var_rsid_dict(var_info)
-        print(dict(list(var_rsid_dict.items())[0:3]))  
+        var_rsid_dict = make_var_rsid_dict(rsid_map)
+        print(dict(list(var_rsid_dict.items())[0:1]))  
         toc = time.process_time()  
         print("time of building var_rsid dict: ", toc - tic)
 
@@ -95,9 +101,11 @@ def main():
                 i+=1
                 k = line.rstrip().split("\t")
                 line_wr = []
-                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,maf,pvalue,beta,se
-                k.insert(7, str(round(float(k[7])/float(k[8]))))
-                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se
+
+                if k[5] in var_info_dict:
+                    k.extect(var_info_dict[k[5]].split("#")) #join ac,an,type, and r2 values
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se, ac, an, type, r2
                 
                 if k[0] in pheno_meta_dict:
                     k.extend(pheno_meta_dict[k[0]].split("#")) # join pheno_metadata

@@ -285,7 +285,7 @@ process join_rsids_var_info {
     file rsid_map from rsid_map_join_rsids.collect()
 
     output:
-    set study_qtl_group, file("${var_info.simpleName}.var_info_rsid.tsv.gz") into var_info_format_summstats
+    set study_qtl_group, file(var_info), file("${var_info.simpleName}.var_info_rsid.tsv.gz") into var_info_format_summstats
 
     script:
     """
@@ -465,7 +465,7 @@ process reformat_summstats {
     params.run_nominal && params.reformat_summstats
 
     input:
-    set study_qtl_group, file(summ_stats), file(var_info), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
+    set study_qtl_group, file(summ_stats), file(var_info), file(rsid_map), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
 
     output:
     set study_qtl_group, file("${study_qtl_group}.nominal.sorted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
@@ -475,6 +475,7 @@ process reformat_summstats {
     $baseDir/bin/join_variant_info.py \
         -s $summ_stats \
         -v $var_info \
+        -r $rsid_map \
         -p $phenotype_metadata \
         -m $median_tpm \
         -o ${study_qtl_group}.nominal.sorted.tsv.gz
