@@ -94,7 +94,7 @@ def main():
             print("time of building var_rsid dict: ", toc - tic)
 
         with gzip.open(summ_stats, "rt") as f:
-            col_names = ["molecular_trait_id","chromosome","position","ref","alt","variant","ma_samples","ac","an","maf","pvalue","beta","se","molecular_trait_object_id","gene_id","median_tpm","r2","type","rsid"]
+            col_names = ["molecular_trait_id","chromosome","position","ref","alt","variant","ma_samples","maf","pvalue","beta","se","ac","an,","type","r2","molecular_trait_object_id","gene_id","median_tpm","rsid"]
             writer.writerow(col_names)
             for line in f:
                 if i%10000000 == 0:
@@ -104,24 +104,28 @@ def main():
                 line_wr = []
                 # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se
 
+                #Remove ma_count column 
+                k.pop(7)
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,maf,pvalue,beta,se
+
                 if k[5] in var_info_dict:
                     k.extend(var_info_dict[k[5]].split("#")) #join ac,an,type, and r2 values
-                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ma_count,maf,pvalue,beta,se, ac, an, type, r2
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,maf,pvalue,beta,se,ac,an,type,r2
                 
                 if k[0] in pheno_meta_dict:
                     k.extend(pheno_meta_dict[k[0]].split("#")) # join pheno_metadata
                 else:
                     k.extend(["NA","NA"]) # join NA's for unfound phenotype id
-                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se,molecular_trait_object_id,gene_id
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,maf,pvalue,beta,se,ac,an,type,r2,molecular_trait_object_id,gene_id
                 
-                if median_tpm!="null.txt" and k[0] in median_tpm_dict:
-                    k.append(median_tpm_dict[k[0]]) # join median_tpm
+                if median_tpm!="null.txt" and k[16] in median_tpm_dict:
+                    k.append(median_tpm_dict[k[16]]) # join median_tpm
                 else:
                     k.append("NA") # join NA's for unfound median_tpm phenotype_id
-                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se,molecular_trait_object_id,gene_id,median_tpm
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,maf,pvalue,beta,se,ac,an,type,r2,molecular_trait_object_id,gene_id,median_tpm
 
                 if k[5] in var_rsid_dict:
-                    k.extend(var_rsid_dict[k[5]].split(",")[::-1]) # join r2, type, rsid
+                    k.extend(var_rsid_dict[k[5]].split(",")[::-1]) # join rsid
                     if "#" in k[-1]: # check if there are multiple rsids
                         rsids = k[-1].strip().split("#")
                         for rsid in rsids:
@@ -131,9 +135,9 @@ def main():
                     else:     
                         writer.writerow(k)
                 else:
-                    k.extend(["NA","NA","NA"]) # add NA's for r2, type, rsid
+                    k.extend(["NA"]) # add NA's for missing
                     writer.writerow(k)
-                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,ac,an,maf,pvalue,beta,se,molecular_trait_object_id,gene_id,median_tpm,r2,type,rsid
+                # molecular_trait_id,chromosome,position,ref,alt,variant,ma_samples,maf,pvalue,beta,se,ac,an,type,r2,molecular_trait_object_id,gene_id,median_tpm,rsid
     else:
         print("Building the dictionary")
         tic = time.process_time()  
