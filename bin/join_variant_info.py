@@ -94,7 +94,7 @@ def main():
             print("time of building var_rsid dict: ", toc - tic)
 
         with gzip.open(summ_stats, "rt") as f:
-            col_names = ["molecular_trait_id","chromosome","position","ref","alt","variant","ma_samples","maf","pvalue","beta","se","ac","an,","type","r2","molecular_trait_object_id","gene_id","median_tpm","rsid"]
+            col_names = ["molecular_trait_id","chromosome","position","ref","alt","variant","ma_samples","maf","pvalue","beta","se","type","ac","an","r2","molecular_trait_object_id","gene_id","median_tpm","rsid"]
             writer.writerow(col_names)
             for line in f:
                 if i%10000000 == 0:
