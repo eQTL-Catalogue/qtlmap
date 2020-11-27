@@ -1,4 +1,4 @@
-# kerimoff/qtlmap: Usage
+# eQTL-Catalogue/qtlmap: Usage
 
 ## Table of contents
 
