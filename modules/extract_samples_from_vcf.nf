@@ -1,6 +1,7 @@
 
 process extract_samples_from_vcf {
     tag "${qtl_subset}"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(genotype_vcf), file(sample_names)

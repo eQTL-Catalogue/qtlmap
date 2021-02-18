@@ -3,6 +3,7 @@
  */
 process run_permutation {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     each batch_index
@@ -23,6 +24,7 @@ process run_permutation {
 process merge_permutation_batches {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats", mode: 'copy'
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(batch_file_names)
@@ -42,6 +44,7 @@ process merge_permutation_batches {
  */
 process run_nominal {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
     
     input:
     each batch_index
@@ -65,6 +68,7 @@ process run_nominal {
  */
 process merge_nominal_batches {
     tag "${qtl_subset}"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(batch_file_names)  
@@ -90,6 +94,7 @@ process sort_qtltools_output {
     tag "${qtl_subset}"
     publishDir path: { !params.reformat_sumstats ? "${params.outdir}/sumstats" : params.outdir },
             saveAs: { !params.reformat_sumstats ? it : null }, mode: 'copy'
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(nominal_merged)

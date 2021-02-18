@@ -1,6 +1,7 @@
 //Add rsids to the variant information file
 process join_rsids_var_info {
     tag "${qtl_subset}"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(var_info)
@@ -20,6 +21,7 @@ process join_rsids_var_info {
 
 process reformat_sumstats {
     tag "${qtl_subset}"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(summ_stats), file(var_info), file(rsid_map), file(phenotype_metadata), file(median_tpm)
@@ -45,6 +47,7 @@ process reformat_sumstats {
 process tabix_index {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats", mode: 'copy'
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(sumstats_file)

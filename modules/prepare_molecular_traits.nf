@@ -6,6 +6,7 @@
 process prepare_molecular_traits {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/PCA/${qtl_subset}", mode: 'copy', pattern: "*.phenoPCA.tsv"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf_variant_info)
@@ -32,6 +33,7 @@ process prepare_molecular_traits {
 // Compress and index to original bed file and make one that is comaptible with fastQTL
 process compress_bed {
     tag "${qtl_subset}"
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(bed_file)
@@ -54,6 +56,7 @@ process compress_bed {
 process make_pca_covariates {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/PCA/${qtl_subset}", mode: 'copy'
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(phenotype_pca), file(vcf)

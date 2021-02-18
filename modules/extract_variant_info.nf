@@ -2,6 +2,7 @@
 process extract_variant_info {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/varinfo", mode: 'copy'
+    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(vcf)
