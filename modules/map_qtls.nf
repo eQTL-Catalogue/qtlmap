@@ -88,8 +88,8 @@ process merge_nominal_batches {
  */
 process sort_qtltools_output {
     tag "${qtl_subset}"
-    publishDir path: { !params.reformat_summstats ? "${params.outdir}/sumstats" : params.outdir },
-            saveAs: { !params.reformat_summstats ? it : null }, mode: 'copy'
+    publishDir path: { !params.reformat_sumstats ? "${params.outdir}/sumstats" : params.outdir },
+            saveAs: { !params.reformat_sumstats ? it : null }, mode: 'copy'
 
     input:
     tuple val(qtl_subset), file(nominal_merged)
