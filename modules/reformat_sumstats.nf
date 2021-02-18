@@ -28,7 +28,7 @@ process reformat_sumstats {
     tuple val(qtl_subset), file(summ_stats), file(var_info), file(rsid_map), file(phenotype_metadata), file(median_tpm)
 
     output:
-    set qtl_subset, file("${qtl_subset}.nominal.sorted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
+    tuple val(qtl_subset), file("${qtl_subset}.nominal.sorted.tsv.gz")
 
     script:
     """
@@ -64,4 +64,4 @@ process tabix_index {
     mv ${qtl_subset}.nominal.sorted.bgzip.tsv.gz ${qtl_subset}.nominal.sorted.tsv.gz
     tabix -s2 -b3 -e3 -S1 -f ${qtl_subset}.nominal.sorted.tsv.gz
     """
-}s
+}

@@ -169,12 +169,12 @@ log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
 include { vcf_set_variant_ids } from './modules/vcf_set_variant_ids'
-include { extract_variant_info } from './modules/vcf_set_variant_ids'
-include { extract_variant_info as extract_variant_info2 } from './modules/vcf_set_variant_ids'
-include { prepare_molecular_traits, compress_bed, make_pca_covariates } from './modules/prepare_molecular_traits'
-include { extract_samples_from_vcf } from './modules/extact_samples_from_vcf'
-include { run_permutation, merge_permutation_batches, run_nominal, merge_nominal_batches, sort_qtltools_output} from './modules/map_qtls'
-include { join_rsids_var_info, reformat_summstats, tabix_index} from './modules/reformat_sumstats'
+include { extract_variant_info } from './modules/extract_variant_info'
+include { extract_variant_info as extract_variant_info2 } from './modules/extract_variant_info'
+include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './modules/prepare_molecular_traits'
+include { extract_samples_from_vcf } from './modules/extract_samples_from_vcf'
+include { run_permutation; merge_permutation_batches; run_nominal; merge_nominal_batches; sort_qtltools_output} from './modules/map_qtls'
+include { join_rsids_var_info; reformat_sumstats; tabix_index} from './modules/reformat_sumstats'
 
 workflow {
 
@@ -201,8 +201,8 @@ workflow {
     //Reformat sumstats
     extract_variant_info2(extract_samples_from_vcf.out.vcf)
     join_rsids_var_info( extract_variant_info2.out,rsid_map_ch.collect() )
-    reformat_summstats( sort_qtltools_output.out.join(join_rsids_var_info.out).join(prepare_molecular_traits.out.pheno_meta).join(tpm_file_ch) )
-    tabix_index(reformat_summstats.out)
+    reformat_sumstats( sort_qtltools_output.out.join(join_rsids_var_info.out).join(prepare_molecular_traits.out.pheno_meta).join(tpm_file_ch) )
+    tabix_index(reformat_sumstats.out)
     
 }
 

@@ -1,3 +1,4 @@
+
 process extract_samples_from_vcf {
     tag "${qtl_subset}"
 
@@ -6,7 +7,7 @@ process extract_samples_from_vcf {
 
     output:
     tuple val(qtl_subset), file("${sample_names.simpleName}.vcf.gz"), emit: vcf 
-    tuple val(qtl_subset), file("${sample_names.simpleName}.vcf.gz.tbi") emit: index
+    tuple val(qtl_subset), file("${sample_names.simpleName}.vcf.gz.tbi"), emit: index
 
     script:
     """
