@@ -50,7 +50,7 @@ def helpMessage() {
       --mincisvariant               Minimal numner of variants needed to be found in cis_window of each phenotype (default: 5)
     
     Format results:
-      --reformat_summstats          Add rsid and median TPM columns to the nominal summary statistics files and perform additional formatting to make the files compatible with the eQTL Catalogue (default: true)
+      --reformat_sumstats          Add rsid and median TPM columns to the nominal summary statistics files and perform additional formatting to make the files compatible with the eQTL Catalogue (default: true)
       --varid_rsid_map_file         TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP.
 
     Other options:
@@ -190,22 +190,25 @@ workflow {
     qtlmap_input_ch = compress_bed.out.join(extract_samples_from_vcf.out.vcf).join(extract_samples_from_vcf.out.index).join(make_pca_covariates.out)
     
     //Permutation pass
-    run_permutation(batch_ch, qtlmap_input_ch)
-    merge_permutation_batches( run_permutation.out.groupTuple(size: params.n_batches, sort: true) )
-
+    if( params.run_permutation ){
+      run_permutation(batch_ch, qtlmap_input_ch)
+      merge_permutation_batches( run_permutation.out.groupTuple(size: params.n_batches, sort: true) )
+    }
     //Nominal pass
-    run_nominal(batch_ch, qtlmap_input_ch)
-    merge_nominal_batches( run_nominal.out.groupTuple(size: params.n_batches, sort: true) )
-    sort_qtltools_output( merge_nominal_batches.out )
+    if( params.run_nominal ){
+      run_nominal(batch_ch, qtlmap_input_ch)
+      merge_nominal_batches( run_nominal.out.groupTuple(size: params.n_batches, sort: true) )
+      sort_qtltools_output( merge_nominal_batches.out )
 
-    //Reformat sumstats
-    extract_variant_info2(extract_samples_from_vcf.out.vcf)
-    join_rsids_var_info( extract_variant_info2.out,rsid_map_ch.collect() )
-    reformat_sumstats( sort_qtltools_output.out.join(join_rsids_var_info.out).join(prepare_molecular_traits.out.pheno_meta).join(tpm_file_ch) )
-    tabix_index(reformat_sumstats.out)
-    
+      //Reformat sumstats
+      if( params.reformat_sumstats ){
+        extract_variant_info2(extract_samples_from_vcf.out.vcf)
+        join_rsids_var_info( extract_variant_info2.out,rsid_map_ch.collect() )
+        reformat_sumstats( sort_qtltools_output.out.join(join_rsids_var_info.out).join(prepare_molecular_traits.out.pheno_meta).join(tpm_file_ch) )
+        tabix_index(reformat_sumstats.out)
+      }
+    }
 }
-
 
 /*
  * Completion e-mail notification
@@ -263,11 +266,11 @@ workflow.onComplete {
           if( params.plaintext_email ){ throw GroovyException('Send plaintext e-mail, not HTML') }
           // Try to send HTML e-mail using sendmail
           [ 'sendmail', '-t' ].execute() << sendmail_html
-          log.info "[kerimoff/qtlmap] Sent summary e-mail to $params.email (sendmail)"
+          log.info "[eQTL-Catalogue/qtlmap] Sent summary e-mail to $params.email (sendmail)"
         } catch (all) {
           // Catch failures and try with plaintext
           [ 'mail', '-s', subject, params.email ].execute() << email_txt
-          log.info "[kerimoff/qtlmap] Sent summary e-mail to $params.email (mail)"
+          log.info "[eQTL-Catalogue/qtlmap] Sent summary e-mail to $params.email (mail)"
         }
     }
 

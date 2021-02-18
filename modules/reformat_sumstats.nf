@@ -21,9 +21,6 @@ process join_rsids_var_info {
 process reformat_sumstats {
     tag "${qtl_subset}"
 
-    when:
-    params.run_nominal && params.reformat_summstats
-
     input:
     tuple val(qtl_subset), file(summ_stats), file(var_info), file(rsid_map), file(phenotype_metadata), file(median_tpm)
 
@@ -48,9 +45,6 @@ process reformat_sumstats {
 process tabix_index {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats", mode: 'copy'
-
-    when:
-    params.run_nominal
 
     input:
     tuple val(qtl_subset), file(sumstats_file)

@@ -3,9 +3,6 @@
  */
 process run_permutation {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-    
-    when:
-    params.run_permutation
 
     input:
     each batch_index
@@ -26,9 +23,6 @@ process run_permutation {
 process merge_permutation_batches {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats", mode: 'copy'
-    
-    when:
-    params.run_permutation
 
     input:
     tuple val(qtl_subset), file(batch_file_names)
@@ -48,9 +42,6 @@ process merge_permutation_batches {
  */
 process run_nominal {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-
-    when:
-    params.run_nominal
     
     input:
     each batch_index
@@ -74,9 +65,6 @@ process run_nominal {
  */
 process merge_nominal_batches {
     tag "${qtl_subset}"
-
-    when:
-    params.run_nominal
 
     input:
     tuple val(qtl_subset), file(batch_file_names)  
@@ -102,9 +90,6 @@ process sort_qtltools_output {
     tag "${qtl_subset}"
     publishDir path: { !params.reformat_summstats ? "${params.outdir}/sumstats" : params.outdir },
             saveAs: { !params.reformat_summstats ? it : null }, mode: 'copy'
-
-    when:
-    params.run_nominal
 
     input:
     tuple val(qtl_subset), file(nominal_merged)
