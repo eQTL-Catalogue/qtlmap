@@ -186,7 +186,10 @@ workflow {
     make_pca_covariates(prepare_molecular_traits.out.pheno_pca.join(extract_samples_from_vcf.out.vcf))
 
     //Run nominal and permutation passes
-    qtlmap_input_ch = compress_bed.out.join(extract_samples_from_vcf.out.vcf).join(extract_samples_from_vcf.out.index).join(make_pca_covariates.out)
+    qtlmap_input_ch = compress_bed.out
+      .join(extract_samples_from_vcf.out.vcf)
+      .join(extract_samples_from_vcf.out.index)
+      .join(make_pca_covariates.out)
     
     //Permutation pass
     if( params.run_permutation ){
@@ -203,7 +206,13 @@ workflow {
       if( params.reformat_sumstats ){
         extract_variant_info2(extract_samples_from_vcf.out.vcf)
         join_rsids_var_info( extract_variant_info2.out,rsid_map_ch.collect() )
-        reformat_sumstats( sort_qtltools_output.out.join(join_rsids_var_info.out).join(prepare_molecular_traits.out.pheno_meta).join(tpm_file_ch) )
+        
+        reformat_input_ch = sort_qtltools_output.out
+          .join(join_rsids_var_info.out)
+          .join(prepare_molecular_traits.out.pheno_meta)
+          .join(tpm_file_ch)
+
+        reformat_sumstats( reformat_input_ch )
         tabix_index(reformat_sumstats.out)
       }
     }
