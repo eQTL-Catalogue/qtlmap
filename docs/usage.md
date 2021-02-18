@@ -50,7 +50,7 @@ The typical command for running the pipeline is as follows:
 ```bash
 nextflow run main.nf -profile tartu_hpc\
    --studyFile testdata/multi_test.tsv\
-    --is_imputed FALSE\
+    --vcf_has_R2_field FALSE\
     --varid_rsid_map_file testdata/varid_rsid_map.tsv.gz\
     --n_batches 25
 ```

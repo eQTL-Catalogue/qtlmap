@@ -29,7 +29,7 @@ def helpMessage() {
     nextflow run main.nf\
      -profile tartu_hpc\
      --studyFile testdata/multi_test.tsv\
-     --is_imputed FALSE\
+     --vcf_has_R2_field FALSE\
      --varid_rsid_map_file testdata/varid_rsid_map.tsv.gz\
      --n_batches 25
 
@@ -38,7 +38,7 @@ def helpMessage() {
 
     Executions:
       --n_batches                   Number of parallel batches to run QTL Mapping per sample, must exceed the number of chromosomes (default: 400)
-      --is_imputed                  Does the genotype VCF file contain R2 value in the INFO field? (default: true)
+      --vcf_has_R2_field            Does the genotype VCF file contain R2 value in the INFO field? (default: true)
       --run_permutation             Calculate permuation p-values for each phenotype group (group_id in the phenotype metadata file) (default: false)
       --run_nominal                 Calculate nominal p-values for each phenotype group (group_id in the phenotype metadata file) (default: true)
       --n_permutations              Number of permutations to be performed per gene when run_permutation = true (default: 1000)
@@ -139,7 +139,7 @@ summary['Run Name']             = custom_runName ?: workflow.runName
 summary['Study file']           = params.studyFile
 summary['Cis window']           = params.cis_window
 summary['Minimum Cis variants'] = params.mincisvariant
-summary['Is imputed']           = params.is_imputed
+summary['VCF has R2 field']     = params.vcf_has_R2_field
 summary['Permutation run']      = params.run_permutation
 summary['# of permutations']    = params.n_permutations
 summary['Nominal run']          = params.run_nominal
