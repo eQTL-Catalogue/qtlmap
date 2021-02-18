@@ -152,7 +152,6 @@ summary['Max Time']             = params.max_time
 summary['Output dir']           = params.outdir
 summary['Working dir']          = workflow.workDir
 summary['Container Engine']     = workflow.containerEngine
-if(workflow.containerEngine) summary['Container'] = workflow.container
 summary['Current home']         = "$HOME"
 summary['Current user']         = "$USER"
 summary['Current path']         = "$PWD"
