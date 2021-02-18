@@ -8,7 +8,7 @@
  https://github.com/eQTL-Catalogue/qtlmap
 ----------------------------------------------------------------------------------------
 */
-
+nextflow.enable.dsl=2
 
 def helpMessage() {
     log.info"""
@@ -93,17 +93,34 @@ if( workflow.profile == 'awsbatch') {
 /*
  * Create a channel for input files
  */ 
-// study_name	count_matrix	pheno_meta	sample_meta	vcf tpm_file
+
+//molecular trait data input data
 Channel.fromPath(params.studyFile)
     .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
     .splitCsv(header: true, sep: '\t', strip: true)
-    .map{row -> [ row.qtl_subset, file(row.count_matrix), file(row.pheno_meta), file(row.sample_meta), file(row.vcf), file(row.tpm_file)]}
-    .set { genotype_vcf_extract_variant_info }
+    .map{row -> [ row.qtl_subset, file(row.count_matrix), file(row.pheno_meta), file(row.sample_meta)]}
+    .set { study_file_ch }
+
+// Separate channel for the VCF file
+Channel.fromPath(params.studyFile)
+    .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.qtl_subset, file(row.vcf) ]}
+    .set { vcf_file_ch }
+
+//Another one for the TPM file that is only needed in the end
+Channel.fromPath(params.studyFile)
+    .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.qtl_subset, file(row.tpm_file)]}
+    .set { tpm_file_ch }
 
 Channel.fromPath(params.varid_rsid_map_file)
     .ifEmpty { error "Cannot find varid_rsid_map_file file in: ${params.varid_rsid_map_file}" }
-    .set { rsid_map_join_rsids }
+    .set { rsid_map_ch }
 
+// Batch channel
+batch_ch = Channel.of(1..params.n_batches)
 
 // Header log info
 log.info """=======================================================
@@ -151,359 +168,44 @@ if(params.email) summary['E-mail Address'] = params.email
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
-/*
- * STEP 0 - Extract variant information from VCF and make sure that all variants are named as CHR_POS_REF_ALT
- */
-process extract_all_variant_info {
-    tag "${qtl_subset}"
+include { vcf_set_variant_ids } from './modules/vcf_set_variant_ids'
+include { extract_variant_info } from './modules/vcf_set_variant_ids'
+include { extract_variant_info as extract_variant_info2 } from './modules/vcf_set_variant_ids'
+include { prepare_molecular_traits, compress_bed, make_pca_covariates } from './modules/prepare_molecular_traits'
+include { extract_samples_from_vcf } from './modules/extact_samples_from_vcf'
+include { run_permutation, merge_permutation_batches, run_nominal, merge_nominal_batches, sort_qtltools_output} from './modules/map_qtls'
+include { join_rsids_var_info, reformat_summstats, tabix_index} from './modules/reformat_sumstats'
 
-    input:
-    tuple qtl_subset, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(tpm_file) from genotype_vcf_extract_variant_info
+workflow {
+
+    // Prepare input data for QTL mapping
+    vcf_set_variant_ids(vcf_file_ch)
+    extract_variant_info(vcf_set_variant_ids.out)
+    prepare_molecular_traits(study_file_ch.join(extract_variant_info.out))
+    compress_bed(prepare_molecular_traits.out.bed_file)
+    extract_samples_from_vcf(vcf_set_variant_ids.out.join(prepare_molecular_traits.out.sample_names))
+    make_pca_covariates(prepare_molecular_traits.out.pheno_pca.join(extract_samples_from_vcf.out.vcf))
+
+    //Run nominal and permutation passes
+    qtlmap_input_ch = compress_bed.out.join(extract_samples_from_vcf.out.vcf).join(extract_samples_from_vcf.out.index).join(make_pca_covariates.out)
     
-    output:
-    tuple qtl_subset, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file("${vcf.simpleName}_renamed.vcf.gz"), file("${vcf.simpleName}.variant_information.txt.gz"), file(tpm_file) into variant_info_create_QTLTools_input
-    tuple qtl_subset, file(phenotype_metadata), file(tpm_file) into tpm_file_reformat_ch
+    //Permutation pass
+    run_permutation(batch_ch, qtlmap_input_ch)
+    merge_permutation_batches( run_permutation.out.groupTuple(size: params.n_batches, sort: true) )
 
-    script:
-    if (params.is_imputed) {
-        """
-        bcftools annotate --set-id 'chr%CHROM\\_%POS\\_%REF\\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
-        set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\t%R2\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
-        """
-    } else {
-        """
-        bcftools annotate --set-id 'chr%CHROM\\_%POS\\_%REF\\_%FIRST_ALT' $vcf -Oz -o ${vcf.simpleName}_renamed.vcf.gz
-        set +o pipefail; bcftools +fill-tags ${vcf.simpleName}_renamed.vcf.gz | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${vcf.simpleName}.variant_information.txt.gz
-        """
-    }
-}
+    //Nominal pass
+    run_nominal(batch_ch, qtlmap_input_ch)
+    merge_nominal_batches( run_nominal.out.groupTuple(size: params.n_batches, sort: true) )
+    sort_qtltools_output( merge_nominal_batches.out )
 
-/*
- * STEP 1 - Generate QTLTools input files
- */
-process create_QTLTools_input {
-    tag "${qtl_subset}"
-    publishDir "${params.outdir}/PCA/${qtl_subset}", mode: 'copy', pattern: "*.phenoPCA.tsv"
-
-    input:
-    tuple qtl_subset, file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf), file(vcf_variant_info), file(tpm_file) from variant_info_create_QTLTools_input
-
-    output: 
-    tuple qtl_subset, file("*.bed") into qtl_group_beds
-    tuple qtl_subset, file(vcf), file("*.sample_names.txt") into qtl_group_samplenames
-    tuple qtl_subset, file("*.phenoPCA.tsv") into qtl_group_pheno_PCAs
-
-    script:
-    """
-    Rscript $baseDir/bin/group_by_qtlgroup.R \\
-        -p "$phenotype_metadata" \\
-        -s "$sample_metadata" \\
-        -e "$expression_matrix" \\
-        -v "$vcf_variant_info" \\
-        -o "." \\
-        -c ${params.cis_window} \\
-        -m ${params.mincisvariant}
-    """
-}
-
-/*
- * STEP 2 - Compres and index input bed file
- */ 
-process compress_bed {
-    tag "${qtl_subset}"
-
-    input:
-    tuple qtl_subset, file(bed_file) from qtl_group_beds
-
-    output:
-    tuple qtl_subset, file("${bed_file}.gz"), file("${bed_file}.gz.tbi"), file("${bed_file.baseName}.fastQTL.bed.gz"), file("${bed_file.baseName}.fastQTL.bed.gz.tbi") into compressed_beds
-
-    script:
-    """
-    bgzip ${bed_file} && tabix -p bed ${bed_file}.gz
+    //Reformat sumstats
+    extract_variant_info2(extract_samples_from_vcf.out.vcf)
+    join_rsids_var_info( extract_variant_info2.out,rsid_map_ch.collect() )
+    reformat_summstats( sort_qtltools_output.out.join(join_rsids_var_info.out).join(prepare_molecular_traits.out.pheno_meta).join(tpm_file_ch) )
+    tabix_index(reformat_summstats.out)
     
-    csvtk cut -C\$ -t -f -strand,-group_id ${bed_file}.gz | bgzip > ${bed_file.baseName}.fastQTL.bed.gz
-    tabix -p bed ${bed_file.baseName}.fastQTL.bed.gz
-    """
 }
 
-/*
- * STEP 3 - Extract samples from vcf
- */
-process extract_samples {
-    tag "${qtl_subset}"
-
-    input:
-    tuple qtl_subset, file(genotype_vcf), file(sample_names) from qtl_group_samplenames
-
-    output:
-    tuple qtl_subset, file("${sample_names.simpleName}.vcf.gz") into vcfs_extract_variant_info, vcfs, vcfs_perform_pca 
-    tuple qtl_subset, file("${sample_names.simpleName}.vcf.gz.tbi") into vcf_indexes
-
-    script:
-    """
-    bcftools view -S $sample_names $genotype_vcf -Oz -o ${sample_names.simpleName}.vcf.gz
-    tabix -p vcf ${sample_names.simpleName}.vcf.gz
-    """
-}
-
-compressed_beds.join(vcfs).join(vcf_indexes).into{ tuple_run_nominal; tuple_run_permutation}
-
-/*
- * STEP 4 - Extract variant information from VCF
- */
-process extract_variant_info {
-    tag "${qtl_subset}"
-    publishDir "${params.outdir}/varinfo", mode: 'copy'
-
-    input:
-    tuple qtl_subset, file(vcf) from vcfs_extract_variant_info
-    
-    output:
-    tuple qtl_subset, file("${qtl_subset}.variant_information.txt.gz") into var_info_join_rsids
-
-    script:
-    if (params.is_imputed) {
-        """
-        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\t%R2\\n' | gzip > ${qtl_subset}.variant_information.txt.gz
-        """
-    } else {
-        """
-        set +o pipefail; bcftools +fill-tags $vcf | bcftools query -f '%CHROM\\t%POS\\t%ID\\t%REF\\t%ALT\\t%TYPE\\t%AC\\t%AN\\t%MAF\\tNA\\n' | gzip > ${qtl_subset}.variant_information.txt.gz
-        """
-    }
-}
-
-process join_rsids_var_info {
-    tag "${qtl_subset}"
-    
-    when:
-    params.run_nominal
-
-    input:
-    tuple qtl_subset, file(var_info) from var_info_join_rsids
-    file rsid_map from rsid_map_join_rsids.collect()
-
-    output:
-    tuple qtl_subset, file(var_info), file("${var_info.simpleName}.var_info_rsid.tsv.gz") into var_info_format_summstats
-
-    script:
-    """
-    $baseDir/bin/join_variant_info.py \\
-        -v $var_info \\
-        -r $rsid_map \\
-        -o ${var_info.simpleName}.var_info_rsid.tsv.gz
-    """
-}
-
-// Join phenotype_PCA and VCF file channels by {qtl_subset} key
-qtl_group_pheno_PCAs
-    .join(vcfs_perform_pca)
-    .set {tuple_perform_pca}
-
-/*
- * STEP 5 - Perform PCA on the genotype and phenotype data
- */
-process make_pca_covariates {
-    tag "${qtl_subset}"
-    publishDir "${params.outdir}/PCA/${qtl_subset}", mode: 'copy'
-
-    input:
-    tuple qtl_subset, file(phenotype_pca), file(vcf) from tuple_perform_pca
-
-    output:
-    file "${qtl_subset}.geno.pca*"
-    tuple qtl_subset, file("${qtl_subset}.covariates.txt") into covariates_run_nominal, covariates_run_permutation
-
-    script:
-    """
-    plink2 --vcf $vcf --vcf-half-call h --indep-pairwise 50000 200 0.05 --out ${qtl_subset}_pruned_variants --threads ${task.cpus} --memory ${task.memory.mega}
-    plink2 --vcf $vcf --vcf-half-call h --extract ${qtl_subset}_pruned_variants.prune.in --make-bed --out ${qtl_subset}_pruned
-    plink2 -bfile ${qtl_subset}_pruned --pca ${params.n_geno_pcs} header tabs
-    cat plink.eigenvec \\
-        | sed '1s/IID/genotype_id/' \\
-        | sed '1s/PC/geno_PC/g' \\
-        | csvtk cut -t -f -"FID" \\
-        | csvtk transpose -t > ${qtl_subset}.geno.pca
-    head -n ${params.n_pheno_pcs + 1} $phenotype_pca > ${qtl_subset}.covariates.txt    
-    set +o pipefail; tail -n+2 ${qtl_subset}.geno.pca | head -n ${params.n_geno_pcs} >> ${qtl_subset}.covariates.txt
-    """
-}
-
-/*
- * STEP 6 - Run QTLtools in permutation mode
- */
-process run_permutation {
-    tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-    // publishDir "${params.outdir}/temp_batches", mode: 'copy'
-    
-    when:
-    params.run_permutation
-
-    input:
-    each batch_index from 1..params.n_batches
-    tuple qtl_subset, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_permutation.join(covariates_run_permutation)
-
-    output:
-    set val(qtl_subset), file("${qtl_subset}.permutation.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_permutation_batches
-
-    script:
-    """
-    QTLtools cis --vcf $vcf --bed $bed --cov $covariate --chunk $batch_index ${params.n_batches} --out ${qtl_subset}.permutation.batch.${batch_index}.${params.n_batches}.txt --window ${params.cis_window} --permute ${params.n_permutations} --grp-best
-    """
-}
-
-/*
- * STEP 7 - Merge permutation batches from QTLtools
- */
-process merge_permutation_batches {
-    tag "${qtl_subset}"
-    publishDir "${params.outdir}/sumstats", mode: 'copy'
-    
-    when:
-    params.run_permutation
-
-    input:
-    tuple qtl_subset, batch_file_names from batch_files_merge_permutation_batches.groupTuple(size: params.n_batches, sort: true)  
-
-    output:
-    file "${qtl_subset}.permuted.txt.gz"
-
-    script:
-    """
-    cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
-    cut -f 1,6,7,8,10,11,12,18,19,20,21 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | bgzip > ${qtl_subset}.permuted.txt.gz
-    """
-}
-
-
-/*
- * STEP 8 - Run QTLtools in nominal mode
- */
-process run_nominal {
-    tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-
-    when:
-    params.run_nominal
-    
-    input:
-    each batch_index from 1..params.n_batches
-    tuple qtl_subset, file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate) from tuple_run_nominal.join(covariates_run_nominal)
-
-    output:
-    set qtl_subset, file("${qtl_subset}.nominal.batch.${batch_index}.${params.n_batches}.txt") into batch_files_merge_nominal_batches
-
-    script:
-    """
-	fastQTL --vcf $vcf --bed $fastqtl_bed --cov $covariate \\
-        --chunk $batch_index ${params.n_batches} \\
-        --out ${qtl_subset}.nominal.batch.${batch_index}.${params.n_batches}.txt \\
-        --window ${params.cis_window} \\
-        --ma-sample-threshold 1
-    """
-}
-
-/*
- * STEP 9 - Merge nominal batches from QTLtools
- */
-process merge_nominal_batches {
-    tag "${qtl_subset}"
-
-    when:
-    params.run_nominal
-
-    input:
-    tuple qtl_subset, batch_file_names from batch_files_merge_nominal_batches.groupTuple(size: params.n_batches, sort: true)  
-
-    output:
-    tuple qtl_subset, file("${qtl_subset}.nominal.tab.txt.gz") into nominal_merged_tab_sort_qtltools_output
-
-    script:
-    """
-    cat ${batch_file_names.join(' ')} | \\
-        csvtk space2tab -T | \\
-        csvtk sep -H -t -f 2 -s "_" | \\
-        csvtk replace -t -H -f 10 -p ^chr | \\
-        csvtk cut -t -f1,10,11,12,13,2,4,5,6,7,8,9 | \\
-        bgzip > ${qtl_subset}.nominal.tab.txt.gz
-    """
-}
-
-/*
- * STEP 11 - Sort fastQTL nominal pass outout and add header
- */
-process sort_qtltools_output {
-    tag "${qtl_subset}"
-    publishDir path: { !params.reformat_summstats ? "${params.outdir}/sumstats" : params.outdir },
-            saveAs: { !params.reformat_summstats ? it : null }, mode: 'copy'
-
-    when:
-    params.run_nominal
-
-    input:
-    tuple qtl_subset, file(nominal_merged) from nominal_merged_tab_sort_qtltools_output
-
-    output:
-    tuple qtl_subset, file("${qtl_subset}.nominal.sorted.norsid.tsv.gz") into sorted_merged_nominal_reformat_summ_stats
-
-    script:
-    """
-    gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S11G --parallel=8 | uniq | \\
-        bgzip > ${qtl_subset}.nominal.sorted.norsid.tsv.gz
-    """
-}
-
-sorted_merged_nominal_reformat_summ_stats
-    .join(var_info_format_summstats)
-    .join(tpm_file_reformat_ch)
-    .set { complete_join_summstats }
-
-process reformat_summstats {
-    tag "${qtl_subset}"
-
-    when:
-    params.run_nominal && params.reformat_summstats
-
-    input:
-    set qtl_subset, file(summ_stats), file(var_info), file(rsid_map), file(phenotype_metadata), file(median_tpm) from complete_join_summstats
-
-    output:
-    set qtl_subset, file("${qtl_subset}.nominal.sorted.tsv.gz") into sorted_merged_reformatted_nominal_index_qtltools_output
-
-    script:
-    """
-    $baseDir/bin/join_variant_info.py \
-        -s $summ_stats \
-        -v $var_info \
-        -r $rsid_map \
-        -p $phenotype_metadata \
-        -m $median_tpm \
-        -o ${qtl_subset}.nominal.sorted.tsv.gz
-    """
-}
-/*
- * STEP 12 - Tabix-index QTLtools output files
- */
-process index_qtltools_output {
-    tag "${qtl_subset}"
-    publishDir "${params.outdir}/sumstats", mode: 'copy'
-
-    when:
-    params.run_nominal
-
-    input:
-    tuple qtl_subset, file(sorted_merged_reformatted_nominal) from sorted_merged_reformatted_nominal_index_qtltools_output
-
-    output:
-    tuple qtl_subset, file("${qtl_subset}.nominal.sorted.tsv.gz"), file("${qtl_subset}.nominal.sorted.tsv.gz.tbi") into final_output_ch
-
-    script:
-    """
-    zcat $sorted_merged_reformatted_nominal | bgzip > ${qtl_subset}.nominal.sorted.bgzip.tsv.gz
-    mv ${qtl_subset}.nominal.sorted.bgzip.tsv.gz ${qtl_subset}.nominal.sorted.tsv.gz
-    tabix -s2 -b3 -e3 -S1 -f ${qtl_subset}.nominal.sorted.tsv.gz
-    """
-}
 
 /*
  * Completion e-mail notification
