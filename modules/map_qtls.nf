@@ -30,12 +30,12 @@ process merge_permutation_batches {
     tuple val(qtl_subset), file(batch_file_names)
 
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.permuted.txt.gz")
+    tuple val(qtl_subset), file("${qtl_subset}.permuted.tsv.gz")
 
     script:
     """
     cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
-    cut -f 1,6,7,8,10,11,12,18,19,20,21 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | bgzip > ${qtl_subset}.permuted.txt.gz
+    cut -f 1,6,7,8,10,11,12,18,19,20,21 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}.permuted.tsv.gz
     """
 }
 

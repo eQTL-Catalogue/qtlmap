@@ -53,12 +53,12 @@ process tabix_index {
     tuple val(qtl_subset), file(sumstats_file)
 
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.nominal.sorted.tsv.gz"), file("${qtl_subset}.nominal.sorted.tsv.gz.tbi")
+    tuple val(qtl_subset), file("${qtl_subset}.all.tsv.gz"), file("${qtl_subset}.all.tsv.gz.tbi")
 
     script:
     """
     zcat $sumstats_file | bgzip > ${qtl_subset}.nominal.sorted.bgzip.tsv.gz
-    mv ${qtl_subset}.nominal.sorted.bgzip.tsv.gz ${qtl_subset}.nominal.sorted.tsv.gz
-    tabix -s2 -b3 -e3 -S1 -f ${qtl_subset}.nominal.sorted.tsv.gz
+    mv ${qtl_subset}.nominal.sorted.bgzip.tsv.gz ${qtl_subset}.all.tsv.gz
+    tabix -s2 -b3 -e3 -S1 -f ${qtl_subset}.all.tsv.gz
     """
 }

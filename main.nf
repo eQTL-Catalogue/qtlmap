@@ -48,7 +48,11 @@ def helpMessage() {
       --n_geno_pcs                  Number of genotype matrix principal components included as covariates in QTL analysis (default: 6).
       --n_pheno_pcs                 Number of phenotype matrix principal components included as covariates in QTL analysis (default: 6).
       --mincisvariant               Minimal numner of variants needed to be found in cis_window of each phenotype (default: 5)
-    
+
+    Fine mapping (SuSiE)
+      --run_susie                   Perform eQTL fine mapping with SuSiE
+      --vcf_genotype_field          Field in the VCF file that is used to construct the dosage matrix. Valid options are GT and DS (default: GT). 
+
     Format results:
       --reformat_sumstats          Add rsid and median TPM columns to the nominal summary statistics files and perform additional formatting to make the files compatible with the eQTL Catalogue (default: true)
       --varid_rsid_map_file         TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP.
