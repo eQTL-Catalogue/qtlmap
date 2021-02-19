@@ -96,7 +96,7 @@ splitIntoBatches <- function(n, batch_size){
 }
 
 splitIntoChunks <- function(chunk_number, n_chunks, n_total){
-  chunk_size = floor(n_total/(n_chunks))
+  chunk_size = max(1,floor(n_total/(n_chunks)))
   batches = splitIntoBatches(n_total,chunk_size)
   batches[batches > n_chunks] = n_chunks
   selected_batch = batches == chunk_number
@@ -274,35 +274,42 @@ n_chunks = chunk_vector[2]
 selected_chunk = splitIntoChunks(chunk_id, n_chunks, length(phenotype_list$phenotype_id))
 selected_phenotypes = phenotype_list$phenotype_id[selected_chunk] %>% setNames(as.list(.), .)
 
-#Check that the qtl_group is valid and subset
-assertthat::assert_that(opt$qtl_group %in% unique(se$qtl_group))
-selected_qtl_group = eQTLUtils::subsetSEByColumnValue(se, "qtl_group", opt$qtl_group)
-
-#Apply finemapping to all genes
-results = purrr::map(selected_phenotypes, ~finemapPhenotype(., selected_qtl_group, 
-                                                            genotype_file, covariates_matrix, cis_distance))
-
-#Define fine-mapped regions
-region_df = dplyr::transmute(phenotype_list, phenotype_id, finemapped_region = paste0("chr", chromosome, ":", 
-                                                                                      phenotype_pos - cis_distance, "-",
-                                                                                      phenotype_pos + cis_distance))
-#Extract credible sets from finemapping results
-res = purrr::map(results, extractResults) %>%
-  purrr::transpose()
-
-#Extract information about all variants
-variant_df <- purrr::map_df(res$variant_df, identity, .id = "phenotype_id")
-if(nrow(variant_df) > 0){
-  variant_df <- variant_df %>%
-    dplyr::left_join(region_df, by = "phenotype_id") %>%
-    tidyr::separate(variant_id, c("chr", "pos", "ref", "alt"),sep = "_", remove = FALSE) %>%
-    dplyr::mutate(chr = stringr::str_remove_all(chr, "chr")) %>%
-    dplyr::mutate(cs_index = cs_id) %>%
-    dplyr::mutate(cs_id = paste(phenotype_id, cs_index, sep = "_"))
+#Only proceed if the there are more than 0 phenotypes
+if(length(selected_phenotypes) > 0){
+  #Check that the qtl_group is valid and subset
+  assertthat::assert_that(opt$qtl_group %in% unique(se$qtl_group))
+  selected_qtl_group = eQTLUtils::subsetSEByColumnValue(se, "qtl_group", opt$qtl_group)
+  
+  #Apply finemapping to all genes
+  results = purrr::map(selected_phenotypes, ~finemapPhenotype(., selected_qtl_group, 
+                                                              genotype_file, covariates_matrix, cis_distance))
+  
+  #Define fine-mapped regions
+  region_df = dplyr::transmute(phenotype_list, phenotype_id, finemapped_region = paste0("chr", chromosome, ":", 
+                                                                                        phenotype_pos - cis_distance, "-",
+                                                                                        phenotype_pos + cis_distance))
+  #Extract credible sets from finemapping results
+  res = purrr::map(results, extractResults) %>%
+    purrr::transpose()
+  
+  #Extract information about all variants
+  variant_df <- purrr::map_df(res$variant_df, identity, .id = "phenotype_id")
+  if(nrow(variant_df) > 0){
+    variant_df <- variant_df %>%
+      dplyr::left_join(region_df, by = "phenotype_id") %>%
+      tidyr::separate(variant_id, c("chr", "pos", "ref", "alt"),sep = "_", remove = FALSE) %>%
+      dplyr::mutate(chr = stringr::str_remove_all(chr, "chr")) %>%
+      dplyr::mutate(cs_index = cs_id) %>%
+      dplyr::mutate(cs_id = paste(phenotype_id, cs_index, sep = "_"))
+  }
+  
+  #Extraxt information about credible sets
+  cs_df <- purrr::map_df(res$cs_df, identity, .id = "phenotype_id")
+} else { #Define empty data frames
+  cs_df = dplyr::tibble()
+  variant_df = dplyr::tibble()
 }
 
-#Extraxt information about credible sets
-cs_df <- purrr::map_df(res$cs_df, identity, .id = "phenotype_id")
 if(nrow(cs_df) > 0){
   cs_df = dplyr::left_join(cs_df, region_df, by = "phenotype_id") %>%
     dplyr::mutate(cs_index = cs_id) %>%
