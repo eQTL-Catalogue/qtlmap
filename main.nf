@@ -174,6 +174,8 @@ include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './
 include { extract_samples_from_vcf } from './modules/extract_samples_from_vcf'
 include { run_permutation; merge_permutation_batches; run_nominal; merge_nominal_batches; sort_qtltools_output} from './modules/map_qtls'
 include { join_rsids_var_info; reformat_sumstats; tabix_index} from './modules/reformat_sumstats'
+include { vcf_to_dosage } from './modules/vcf_to_dosage'
+include { run_susie; merge_susie; sort_susie } from './modules/susie'
 
 workflow {
 
