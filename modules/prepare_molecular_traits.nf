@@ -19,7 +19,7 @@ process prepare_molecular_traits {
 
     script:
     """
-    Rscript $baseDir/bin/group_by_qtlgroup.R \\
+    Rscript $baseDir/bin/prepare_molecular_traits.R \\
         -p "$phenotype_metadata" \\
         -s "$sample_metadata" \\
         -e "$expression_matrix" \\
