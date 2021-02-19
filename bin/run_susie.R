@@ -314,18 +314,19 @@ if(nrow(cs_df) > 0){
   cs_df = dplyr::left_join(cs_df, region_df, by = "phenotype_id") %>%
     dplyr::mutate(cs_index = cs_id) %>%
     dplyr::mutate(cs_id = paste(phenotype_id, cs_index, sep = "_")) %>%
-    dplyr::select(phenotype_id, cs_id, cs_index, finemapped_region, cs_log10bf, cs_avg_r2, cs_min_r2, cs_size, low_purity)
+    dplyr::transmute(molecular_trait_id = phenotype_id, cs_id, cs_index, finemapped_region, cs_log10bf, cs_avg_r2, cs_min_r2, cs_size, low_purity)
   
   #Extract information about variants that belong to a credible set
   in_cs_variant_df <- dplyr::filter(variant_df, !is.na(cs_index) & !low_purity) %>%
-    dplyr::select(phenotype_id, variant_id, chr, pos, ref, alt, cs_id, cs_index, finemapped_region, pip, z, cs_min_r2, cs_avg_r2, cs_size, posterior_mean, posterior_sd, cs_log10bf)
+    dplyr::transmute(molecular_trait_id = phenotype_id, variant = variant_id, chromosome = chr, position = pos, 
+                     ref, alt, cs_id, cs_index, finemapped_region, pip, z, cs_min_r2, cs_avg_r2, cs_size, posterior_mean, posterior_sd, cs_log10bf)
 } else{
   #Initialize empty tibbles with correct column names
   in_cs_variant_df = dplyr::tibble(
-    phenotype_id = character(),
-    variant_id = character(),
-    chr = numeric(),
-    pos = numeric(),
+    molecular_trait_id = character(),
+    variant = character(),
+    chromosome = numeric(),
+    position = numeric(),
     ref = numeric(),
     alt = numeric(),
     cs_id = numeric(),
@@ -342,7 +343,7 @@ if(nrow(cs_df) > 0){
   )
   
   cs_df = dplyr::tibble(
-    phenotype_id = numeric(),
+    molecular_trait_id = numeric(),
     cs_id = numeric(),
     cs_index = numeric(),
     finemapped_region = numeric(),
@@ -356,7 +357,7 @@ if(nrow(cs_df) > 0){
 
 #Extract information about all variants
 if(nrow(variant_df) > 0){
-variant_df <- dplyr::select(variant_df, phenotype_id, variant_id, chr, pos, ref, alt, cs_id, cs_index, low_purity, finemapped_region, pip, z, posterior_mean, posterior_sd, alpha1:sd10)
+variant_df <- dplyr::transmute(variant_df, molecular_trait_id = phenotype_id, variant = variant_id, chromosome = chr, position = pos, ref, alt, cs_id, cs_index, low_purity, finemapped_region, pip, z, posterior_mean, posterior_sd, alpha1:sd10)
 }
 
 #Export high purity credible set results only
