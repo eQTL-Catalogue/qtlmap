@@ -75,7 +75,7 @@ process extract_cs_variants{
     script:
     """
     #Extract variant coordinates from the credible set file
-    csvtk cut -t -T -f chr,pos ${credible_sets} | tail -n +2 | sort -k1n -k2n | uniq > selected_regions.tsv
+    csvtk cut -t -T -f chromosome,position ${credible_sets} | tail -n +2 | sort -k1n -k2n | uniq > selected_regions.tsv
 
     #Extract variants from the summary stats file
     set +o pipefail; zcat ${qtl_ss} | head -n1 | gzip > header.txt.gz
