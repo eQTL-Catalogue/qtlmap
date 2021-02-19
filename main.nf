@@ -207,7 +207,7 @@ workflow {
       //Reformat sumstats
       if( params.reformat_sumstats ){
         extract_variant_info2(extract_samples_from_vcf.out.vcf)
-        join_rsids_var_info( extract_variant_info2.out,rsid_map_ch.collect() )
+        join_rsids_var_info( extract_variant_info2.out, rsid_map_ch.collect() )
         
         reformat_input_ch = sort_qtltools_output.out
           .join(join_rsids_var_info.out)
@@ -226,7 +226,7 @@ workflow {
         .join(merge_permutation_batches.out)
         .join(make_pca_covariates.out)
         .join(vcf_to_dosage.out)
-      run_susie(susie_ch)
+      run_susie(susie_ch, batch_ch)
       merge_susie(run_susie.out)
     }
 }
