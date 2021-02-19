@@ -67,10 +67,10 @@ process extract_cs_variants{
     container = 'quay.io/eqtlcatalogue/susie-finemapping:v20.08.1'
 
     input:
-    tuple qtl_subset, file(credible_sets), file(qtl_ss), file(qtl_ss_index)
+    tuple val(qtl_subset), file(credible_sets), file(qtl_ss), file(qtl_ss_index)
 
     output:
-    tuple qtl_subset, file(credible_sets), file("${qtl_subset}.extracted_sumstats.tsv.gz")
+    tuple val(qtl_subset), file(credible_sets), file("${qtl_subset}.extracted_sumstats.tsv.gz")
 
     script:
     """
