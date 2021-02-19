@@ -179,7 +179,7 @@ include { extract_samples_from_vcf } from './modules/extract_samples_from_vcf'
 include { run_permutation; merge_permutation_batches; run_nominal; merge_nominal_batches; sort_qtltools_output} from './modules/map_qtls'
 include { join_rsids_var_info; reformat_sumstats; tabix_index} from './modules/reformat_sumstats'
 include { vcf_to_dosage } from './modules/vcf_to_dosage'
-include { run_susie; merge_susie; sort_susie } from './modules/susie'
+include { run_susie; merge_susie; sort_susie; extract_cs_variants } from './modules/susie'
 
 workflow {
 
@@ -233,6 +233,11 @@ workflow {
       run_susie(susie_ch, batch_ch)
       merge_susie( run_susie.out.groupTuple(size: params.n_batches, sort: true) )
       sort_susie( merge_susie.out )
+    }
+
+    //Extract credible set variants from the full summary statistics
+    if (params.run_nominal & params.run_permutation & params.run_susie){
+      extract_cs_variants( sort_susie.out.join(tabix_index.out) )
     }
 }
 

@@ -61,3 +61,25 @@ process sort_susie{
     (head -n 1 susie_merged.txt && tail -n +2 susie_merged.txt | sort -k3 -k4n ) | gzip > ${qtl_subset}.purity_filtered.txt.gz
     """
 }
+
+process extract_cs_variants{
+    publishDir "${params.outdir}/extracted_sumstats/", mode: 'copy', pattern: "*.extracted_sumstats.tsv.gz"
+    container = 'quay.io/eqtlcatalogue/susie-finemapping:v20.08.1'
+
+    input:
+    tuple qtl_subset, file(credible_sets), file(qtl_ss), file(qtl_ss_index)
+
+    output:
+    tuple qtl_subset, file(credible_sets), file("${qtl_subset}.extracted_sumstats.tsv.gz")
+
+    script:
+    """
+    #Extract variant coordinates from the credible set file
+    csvtk cut -t -T -f chr,pos ${credible_sets} | tail -n +2 | sort -k1n -k2n | uniq > selected_regions.tsv
+
+    #Extract variants from the summary stats file
+    set +o pipefail; zcat ${qtl_ss} | head -n1 | gzip > header.txt.gz
+    set +o pipefail; tabix -R selected_regions.tsv ${qtl_ss} | gzip > filtered_sumstats.tsv.gz
+    set +o pipefail; zcat header.txt.gz filtered_sumstats.tsv.gz | gzip > ${qtl_subset}.extracted_sumstats.tsv.gz
+    """
+}
