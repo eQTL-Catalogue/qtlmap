@@ -8,7 +8,7 @@ option_list <- list(
   optparse::make_option(c("--sumstats"), type="character", default=NULL,
                         help="Path the summary statistics file. Tab separated", metavar = "type"),
   optparse::make_option(c("--output"), type="character", default=NULL,
-                        help="Path to the output file.", metavar = "type"),
+                        help="Path to the output file.", metavar = "type")
 )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
