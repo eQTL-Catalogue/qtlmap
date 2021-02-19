@@ -63,7 +63,6 @@ process sort_susie{
 }
 
 process extract_cs_variants{
-    publishDir "${params.outdir}/extracted_sumstats/", mode: 'copy', pattern: "*.extracted_sumstats.tsv.gz"
     container = 'quay.io/eqtlcatalogue/susie-finemapping:v20.08.1'
 
     input:
@@ -81,5 +80,23 @@ process extract_cs_variants{
     set +o pipefail; zcat ${qtl_ss} | head -n1 | gzip > header.txt.gz
     set +o pipefail; tabix -R selected_regions.tsv ${qtl_ss} | gzip > filtered_sumstats.tsv.gz
     set +o pipefail; zcat header.txt.gz filtered_sumstats.tsv.gz | gzip > ${qtl_subset}.extracted_sumstats.tsv.gz
+    """
+}
+
+process merge_cs_sumstats{
+    publishDir "${params.outdir}/susie_merged/", mode: 'copy', pattern: "*.credible_sets.tsv.gz"
+    container = 'quay.io/eqtlcatalogue/susie-finemapping:v20.08.1'
+
+    input:
+    tuple val(qtl_subset), file(credible_sets), file(sumstats)
+
+    output:
+    tuple val(qtl_subset), file("${qtl_subset}.credible_sets.tsv.gz")
+
+    script:
+    """
+    Rscript $baseDir/bin/susie_merge_cs.R --cs_results ${credible_sets}\
+     --sumstats ${sumstats}\
+     --out ${qtl_subset}.credible_sets.tsv.gz
     """
 }
