@@ -27,8 +27,8 @@ process run_susie{
 process merge_susie{
     container = 'quay.io/eqtlcatalogue/susie-finemapping:v20.08.1'
 
-    publishDir {params.save_susie_full ? "${params.outdir}/susie_full/", mode: 'copy', pattern: "*.cred.txt.gz" : false }
-    publishDir {params.save_susie_full ? "${params.outdir}/susie_full/", mode: 'copy', pattern: "*.snp.txt.gz" : false }
+    publishDir {params.save_susie_full ? {"${params.outdir}/susie_full/", mode: 'copy', pattern: "*.cred.txt.gz"} : false }
+    publishDir {params.save_susie_full ? {"${params.outdir}/susie_full/", mode: 'copy', pattern: "*.snp.txt.gz"} : false }
 
     input:
     tuple val(qtl_subset), file(in_cs_variant_batch_names), file(credible_set_batch_names), file(variant_batch_names)
