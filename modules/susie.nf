@@ -17,10 +17,10 @@ process run_susie{
      --covariates ${covariates}\
      --genotype_matrix ${genotype_matrix}\
      --chunk '${batch_index} ${params.n_batches}'\
-     --cisdistance ${params.cisdistance}\
+     --cisdistance ${params.cis_window}\
      --out_prefix '${qtl_subset}.${batch_index}_${params.n_batches}'\
-     --eqtlutils ${params.eqtlutils}\
-     --permuted ${params.permuted}
+     --eqtlutils null\
+     --permuted true
     """
 }
 
