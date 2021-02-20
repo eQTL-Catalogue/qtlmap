@@ -25,7 +25,7 @@ cs_table = dplyr::transmute(credible_sets, molecular_trait_id, variant, cs_id, p
   dplyr::select(molecular_trait_id, gene_id, cs_id, variant, rsid, cs_size, pip, pvalue, beta, se, z, cs_min_r2, finemapped_region)
 
 #Save file to disk
-file_handle = gzfile(opt$putput,"w")
+file_handle = gzfile(opt$output,"w")
 write.table(cs_table, file_handle, sep = "\t", row.names = F, col.names = T, quote = FALSE)
 close(file_handle)
 
