@@ -33,5 +33,17 @@ Mapping QTLs is a process of finding statistically significant associations betw
 This pipeline is designed to perform QTL mapping. It is intended to add this pipeline to the nf-core framework in the future.
 High level representation of the pipeline is shown below:
 
+### Results
+The output directory of the workflow contains the following subdirectories:
+
+1. PCA - genotype and gene expression PCA values used as covariates for QTL analysis.
+2. sumstats - QTL summary statistics from nominal and permutation passes.
+3. susie - SuSiE fine mapping credible sets.
+4. susie_full - full set of susie results for all tested variants (very large files).
+5. susie_merged - susie credible sets merged with summary statistics from univariate QTL analysis.
+
+Column names of the output files are explained [here](https://github.com/eQTL-Catalogue/eQTL-Catalogue-resources/blob/master/tabix/Columns.md).
+
+
 ### Credits
 kerimoff/qtlmap was originally written by Nurlan Kerimov under supervision of [Kaur Alasoo](https://github.com/kauralasoo)
