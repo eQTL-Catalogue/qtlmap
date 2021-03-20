@@ -241,7 +241,7 @@ pheno_pca_x <- t(pheno_pca$x) %>% as.data.frame()
 
 # change PC column values as into pheno_PC
 pheno_pca_x <- cbind(SampleID = paste0("pheno_", rownames(pheno_pca_x)), pheno_pca_x)
-utils::write.table(pheno_pca_x, file = file.path(output_dir, paste0(qtl_group,".phenoPCA.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+utils::write.table(pheno_pca_x, file = file.path(output_dir, "phenoPCA.tsv"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 
 #Prepare covariates
 if(!(covariate_names == "null")){
@@ -257,7 +257,10 @@ if(!(covariate_names == "null")){
   }
   cov_df = t(cov_meta)
   cov_df <- cbind(SampleID = paste0("cov_", rownames(cov_df)), cov_df)
-  utils::write.table(cov_df, file = file.path(output_dir, paste0(qtl_group,".additional_covariates.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+  utils::write.table(cov_df, file = file.path(output_dir, "additional_covariates.tsv"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+} else {
+  #Write an empty file with just the header
+  utils::write.table(pheno_pca_x[0,], file = file.path(output_dir, "additional_covariates.tsv"), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 }
 
 

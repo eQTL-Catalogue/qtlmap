@@ -150,6 +150,7 @@ summary['Nominal run']          = params.run_nominal
 summary['# of batches']         = params.n_batches
 summary['# of phenotype PCs']   = params.n_pheno_pcs
 summary['# of genotype PCs']    = params.n_geno_pcs
+summary['Additonal covariates'] = params.covariates
 summary['Max Memory']           = params.max_memory
 summary['Max CPUs']             = params.max_cpus
 summary['Max Time']             = params.max_time
@@ -189,7 +190,7 @@ workflow {
     prepare_molecular_traits(study_file_ch.join(extract_variant_info.out))
     compress_bed(prepare_molecular_traits.out.bed_file)
     extract_samples_from_vcf(vcf_set_variant_ids.out.join(prepare_molecular_traits.out.sample_names))
-    make_pca_covariates(prepare_molecular_traits.out.pheno_pca.join(extract_samples_from_vcf.out.vcf))
+    make_pca_covariates(prepare_molecular_traits.out.pheno_cov.join(extract_samples_from_vcf.out.vcf))
 
     //Run nominal and permutation passes
     qtlmap_input_ch = compress_bed.out

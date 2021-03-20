@@ -5,7 +5,6 @@
  */
 process prepare_molecular_traits {
     tag "${qtl_subset}"
-    publishDir "${params.outdir}/PCA/${qtl_subset}", mode: 'copy', pattern: "*.phenoPCA.tsv"
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
@@ -14,7 +13,7 @@ process prepare_molecular_traits {
     output: 
     tuple val(qtl_subset), file("*.bed"), emit: bed_file
     tuple val(qtl_subset), file("*.sample_names.txt"), emit: sample_names
-    tuple val(qtl_subset), file("*.phenoPCA.tsv"), emit: pheno_pca
+    tuple val(qtl_subset), file("${qtl_subset}.pheno_cov.txt"), emit: pheno_cov
     tuple val(qtl_subset), file(phenotype_metadata), emit: pheno_meta
 
     script:
@@ -26,7 +25,12 @@ process prepare_molecular_traits {
         -v "$vcf_variant_info" \\
         -o "." \\
         -c ${params.cis_window} \\
-        -m ${params.mincisvariant}
+        -m ${params.mincisvariant} \\
+        -a ${params.covariates}
+    
+    #Merge phenotype covariates together
+    head -n ${params.n_pheno_pcs + 1} phenoPCA.tsv > ${qtl_subset}.pheno_cov.txt
+    tail -n+2 additional_covariates.tsv >> ${qtl_subset}.pheno_cov.txt
     """
 }
 
@@ -59,7 +63,7 @@ process make_pca_covariates {
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
-    tuple val(qtl_subset), file(phenotype_pca), file(vcf)
+    tuple val(qtl_subset), file(phenotype_cov), file(vcf)
 
     output:
     tuple val(qtl_subset), file("${qtl_subset}.covariates.txt")
@@ -74,7 +78,7 @@ process make_pca_covariates {
         | sed '1s/PC/geno_PC/g' \\
         | csvtk cut -t -f -"FID" \\
         | csvtk transpose -t > ${qtl_subset}.geno.pca
-    head -n ${params.n_pheno_pcs + 1} $phenotype_pca > ${qtl_subset}.covariates.txt    
+    cat $phenotype_cov > ${qtl_subset}.covariates.txt    
     set +o pipefail; tail -n+2 ${qtl_subset}.geno.pca | head -n ${params.n_geno_pcs} >> ${qtl_subset}.covariates.txt
     """
 }
