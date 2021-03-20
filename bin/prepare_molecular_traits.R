@@ -1,19 +1,3 @@
-# save QTLTools input files generated from qtlgrouped matrices
-saveQTLToolsMatrices <- function(data_list, output_dir, file_suffix = "bed", col_names = TRUE){
-  #Check if the output dir exists and if not then create one
-  if(!file.exists(output_dir)){
-    dir.create(output_dir, recursive = TRUE)
-  }
-  
-  #Save each matrix as a separate txt file
-  for (sn in names(data_list)){
-    file_path = file.path(output_dir, paste(sn, file_suffix, sep = "."))
-    message(file_path)
-    message(paste0("Dimensions of the output file are: ", paste(dim(data_list[[sn]]), collapse = " ")))
-    write.table(data_list[[sn]], file_path, sep = "\t", quote = FALSE, row.names = FALSE, col.names = col_names)
-  }
-}
-
 # divide count_matrix according to sample_metadata file of each qtlgroup
 convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_data){
   #Make sure that all required columns are present
@@ -129,7 +113,9 @@ option_list <- list(
   optparse::make_option(c("-c","--cisdistance"), type="integer", default=1000000, 
               help="Cis distance in bases from center of gene. [default \"%default\"]", metavar = "number"),
   optparse::make_option(c("-m", "--mincisvariant"), type="integer", default=5,
-              help="Minimum count of cis variants in cis-distance of gene to be taken into account. [default \"%default\"]", metavar = "number")
+              help="Minimum count of cis variants in cis-distance of gene to be taken into account. [default \"%default\"]", metavar = "number"),
+  optparse::make_option(c("-a", "--add-covariates"), type="character", default="null",
+                        help="Comma-separate list of additonal covariate columns names to be included in the analysis. [default \"%default\"]", metavar = "type")
 )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
@@ -143,7 +129,8 @@ if(FALSE){
     v = "testdata/GEUVADIS_test_ge_LCL.variant_information.txt.gz",
     c = 1000000,
     m = 5,
-    o = "./QTLTools_input_files")
+    o = "./QTLTools_input_files",
+    a = "sex")
 }
 
 phenotype_meta_path = opt$p
@@ -153,6 +140,7 @@ variant_info_path = opt$v
 output_dir = opt$o
 cis_distance = opt$c
 cis_min_var = opt$m
+covariate_names = opt$a
 
 message("------ Options parsed ------")
 message(paste0("gene_meta_path: ", phenotype_meta_path))
@@ -162,6 +150,7 @@ message(paste0("variant_info_path: ", variant_info_path))
 message(paste0("output_dir: ", output_dir))
 message(paste0("cis_distance: ", cis_distance))
 message(paste0("cis_min_var: ", cis_min_var))
+message(paste0("covariate_names: ", covariate_names))
 
 message(" ## Reading gene metadata file")
 phenotype_data <- utils::read.delim(phenotype_meta_path, quote = "", header = TRUE, stringsAsFactors = FALSE) %>% base::as.data.frame()
@@ -229,32 +218,46 @@ phenotype_data <- phenotype_data[phenotype_data$phenotype_id %in% count_df$pheno
 count_matrix_cis_filter <- count_matrix[count_matrix$phenotype_id %in% count_df$phenotype_id,]
 
 #Split the SE into list based on qtl_group
-message(" ## Grouping by qtlGroups")
+message(" ## Make sure that the data contains only a single QTL group")
 qtl_groups = unique(sample_metadata$qtl_group)
-group_list = stats::setNames(as.list(qtl_groups), qtl_groups)
-sample_meta_qtlgroup_df_list = purrr::map(group_list, ~sample_metadata[sample_metadata[,"qtl_group"] == .,])
-qtltools_list = purrr::map(sample_meta_qtlgroup_df_list, 
-                           ~convertDFtoQTLtools(sample_meta_qtlgroup = ., 
-                                                count_matrix = count_matrix_cis_filter, 
-                                                phenotype_data = phenotype_data))
+assertthat::assert_that(length(qtl_groups) == 1, msg = "Number of distinct qtl_groups exceeds 1. Please check your sample metadata.")
+qtl_group = qtl_groups[1]
 
-message(" ## Generating BED files split by qtl_group ")
-saveQTLToolsMatrices(qtltools_list, output_dir = output_dir, file_suffix = "bed")
+message(" ## Prepare data for QTLtools/FastQTL")
+qtltools_df = convertDFtoQTLtools(sample_metadata, count_matrix = count_matrix_cis_filter, phenotype_data = phenotype_data)
+file_path = file.path(output_dir, paste(qtl_group, "bed", sep = "."))
+write.table(qtltools_df, file_path, sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 
 #Extract sample names
-sample_names = purrr::map(qtltools_list, ~colnames(.)[-(1:6)])
-saveQTLToolsMatrices(sample_names, output_dir = output_dir, file_suffix = "sample_names.txt", col_names = FALSE)
+sample_names = colnames(qtltools_df)[-(1:6)]
+file_path = file.path(output_dir, paste(qtl_group, "sample_names.txt", sep = "."))
+write.table(sample_names, file_path, sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
 
-for (qtl_group_name in names(qtltools_list)) {
-  transposed_group <- t(qtltools_list[[qtl_group_name]][-(1:6)])
-  transposed_group <- transposed_group[, apply(transposed_group, 2, var) != 0]
-  pheno_pca <- stats::prcomp(transposed_group, center=TRUE, scale. = TRUE)
-  pheno_pca_x <- t(pheno_pca$x) %>% as.data.frame() 
+#Perform phenotype PCA
+transposed_mat <- t(qtltools_df[-(1:6)])
+transposed_mat <- transposed_mat[, apply(transposed_mat, 2, var) != 0]
+pheno_pca <- stats::prcomp(transposed_mat, center=TRUE, scale. = TRUE)
+pheno_pca_x <- t(pheno_pca$x) %>% as.data.frame()
+
+# change PC column values as into pheno_PC
+pheno_pca_x <- cbind(SampleID = paste0("pheno_", rownames(pheno_pca_x)), pheno_pca_x)
+utils::write.table(pheno_pca_x, file = file.path(output_dir, paste0(qtl_group,".phenoPCA.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+
+#Prepare covariates
+if(!(covariate_names == "null")){
+  covariate_values = strsplit(covariate_names, ",")[[1]]
+  rownames(sample_metadata) = sample_metadata$genotype_id
+  cov_meta = sample_metadata[sample_names,covariate_values, drop = FALSE]
   
-  # change PC column values as into pheno_PC
-  pheno_pca_x <- cbind(SampleID = paste0("pheno_", rownames(pheno_pca_x)), pheno_pca_x)
-  
-  # write phenotype PCA matrix into file
-  message(" ## write phenotype PCA matrix to ", file.path(output_dir, paste0(qtl_group_name,".phenoPCA.tsv") ) )
-  utils::write.table(pheno_pca_x, file = file.path(output_dir, paste0(qtl_group_name,".phenoPCA.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
+  #Convert character columns to factors levels
+  for (i in seq_along(colnames(cov_meta))){
+    if(class(cov_meta[,i]) == "character"){
+      cov_meta[,i] = as.integer(as.factor(cov_meta[,i]))
+    }
+  }
+  cov_df = t(cov_meta)
+  cov_df <- cbind(SampleID = paste0("cov_", rownames(cov_df)), cov_df)
+  utils::write.table(cov_df, file = file.path(output_dir, paste0(qtl_group,".additional_covariates.tsv")), quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
 }
+
+
