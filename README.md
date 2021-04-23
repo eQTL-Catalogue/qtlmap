@@ -33,6 +33,8 @@ Mapping QTLs is a process of finding statistically significant associations betw
 This pipeline is designed to perform QTL mapping. It is intended to add this pipeline to the nf-core framework in the future.
 High level representation of the pipeline is shown below:
 
+![High_level_schema](docs/images/metromap.png)
+
 ### Results
 The output directory of the workflow contains the following subdirectories:
 
