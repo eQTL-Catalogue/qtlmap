@@ -48,6 +48,7 @@ def helpMessage() {
       --n_geno_pcs                  Number of genotype matrix principal components included as covariates in QTL analysis (default: 6).
       --n_pheno_pcs                 Number of phenotype matrix principal components included as covariates in QTL analysis (default: 6).
       --mincisvariant               Minimal numner of variants needed to be found in cis_window of each phenotype (default: 5)
+      --covariates                  Comma-separated list of additional covariates included in the analysis (e.g. sex, age, batch). Columns with the exact same names should exist in the sample metadata file. 
 
     Fine mapping (SuSiE)
       --run_susie                   Perform eQTL fine mapping with SuSiE
