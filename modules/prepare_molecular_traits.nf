@@ -70,8 +70,8 @@ process make_pca_covariates {
 
     script:
     """
-    plink2 --vcf $vcf --vcf-half-call h --indep-pairwise 50000 200 0.05 --out ${qtl_subset}_pruned_variants --threads ${task.cpus} --memory ${task.memory.mega}
-    plink2 --vcf $vcf --vcf-half-call h --extract ${qtl_subset}_pruned_variants.prune.in --make-bed --out ${qtl_subset}_pruned
+    plink2 --vcf $vcf --vcf-half-call h --indep-pairwise 50000 200 0.05 --out ${qtl_subset}_pruned_variants --threads ${task.cpus} --memory ${task.memory.mega} --const-fid 
+    plink2 --vcf $vcf --vcf-half-call h --extract ${qtl_subset}_pruned_variants.prune.in --make-bed --out ${qtl_subset}_pruned --const-fid 
     plink2 -bfile ${qtl_subset}_pruned --pca ${params.n_geno_pcs} header tabs
     cat plink.eigenvec \\
         | sed '1s/IID/genotype_id/' \\

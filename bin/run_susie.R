@@ -357,7 +357,8 @@ if(nrow(cs_df) > 0){
 
 #Extract information about all variants
 if(nrow(variant_df) > 0){
-variant_df <- dplyr::transmute(variant_df, molecular_trait_id = phenotype_id, variant = variant_id, chromosome = chr, position = pos, ref, alt, cs_id, cs_index, low_purity, finemapped_region, pip, z, posterior_mean, posterior_sd, alpha1:sd10)
+  variant_df_transmute <- dplyr::transmute(variant_df, molecular_trait_id = phenotype_id, variant = variant_id, chromosome = chr, position = pos, ref, alt, cs_id, cs_index, low_purity, finemapped_region, pip, z, posterior_mean, posterior_sd)  
+  variant_df <- dplyr::bind_cols(variant_df_transmute, dplyr::select(variant_df,alpha1:sd10))
 }
 
 #Export high purity credible set results only
