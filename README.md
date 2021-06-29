@@ -47,5 +47,7 @@ The output directory of the workflow contains the following subdirectories:
 Column names of the output files are explained [here](https://github.com/eQTL-Catalogue/eQTL-Catalogue-resources/blob/master/tabix/Columns.md).
 
 
-### Credits
-kerimoff/qtlmap was originally written by Nurlan Kerimov under supervision of [Kaur Alasoo](https://github.com/kauralasoo)
+# Contributors
+* Nurlan Kerimov
+* Kaur Alasoo
+* Masahiro Kanai
