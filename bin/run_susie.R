@@ -193,7 +193,7 @@ extractResults <- function(susie_object){
     purity_df = dplyr::tibble()
   }
   
-  #Extract betas and standard errors
+  #Extract betas and standard errors and lbf_variables
   mean_vec = susieR::susie_get_posterior_mean(susie_object)
   sd_vec = susieR::susie_get_posterior_sd(susie_object)
   alpha_mat = t(susie_object$alpha)
@@ -202,12 +202,14 @@ extractResults <- function(susie_object){
   colnames(mean_mat) = paste0("mean", seq(ncol(mean_mat)))
   sd_mat = sqrt(t(susie_object$alpha * susie_object$mu2 - (susie_object$alpha * susie_object$mu)^2)) / (susie_object$X_column_scale_factors)
   colnames(sd_mat) = paste0("sd", seq(ncol(sd_mat)))
+  lbf_variable_mat = t(susie_object$lbf_variable)
+  colnames(lbf_variable_mat) = paste0("lbf_variable", seq(ncol(lbf_variable_mat)))
   posterior_df = dplyr::tibble(variant_id = names(mean_vec), 
                                pip = susie_object$pip,
                                z = susie_object$z,
                                posterior_mean = mean_vec, 
                                posterior_sd = sd_vec) %>%
-                 dplyr::bind_cols(purrr::map(list(alpha_mat, mean_mat, sd_mat), dplyr::as_tibble))
+                 dplyr::bind_cols(purrr::map(list(alpha_mat, mean_mat, sd_mat, lbf_variable_mat), dplyr::as_tibble))
 
   if(nrow(df) > 0 & nrow(purity_df) > 0){
     cs_df = purity_df
@@ -358,7 +360,64 @@ if(nrow(cs_df) > 0){
 #Extract information about all variants
 if(nrow(variant_df) > 0){
   variant_df_transmute <- dplyr::transmute(variant_df, molecular_trait_id = phenotype_id, variant = variant_id, chromosome = chr, position = pos, ref, alt, cs_id, cs_index, low_purity, finemapped_region, pip, z, posterior_mean, posterior_sd)  
-  variant_df <- dplyr::bind_cols(variant_df_transmute, dplyr::select(variant_df,alpha1:sd10))
+  variant_df <- dplyr::bind_cols(variant_df_transmute, dplyr::select(variant_df,alpha1:lbf_variable10))
+} else{
+  variant_df = dplyr::tibble(
+    molecular_trait_id = character(),
+    variant = character(),
+    chromosome = numeric(),
+    position = numeric(),
+    ref = character(),
+    alt = character(),
+    cs_id = character(),
+    cs_index = character(),
+    low_purity = character(),
+    finemapped_region = character(),
+    pip = numeric(),
+    z = numeric(),
+    posterior_mean = numeric(),
+    posterior_sd = numeric(),
+    alpha1 = numeric(),
+    alpha2 = numeric(),
+    alpha3 = numeric(),
+    alpha4 = numeric(),
+    alpha5 = numeric(),
+    alpha6 = numeric(),
+    alpha7 = numeric(),
+    alpha8 = numeric(),
+    alpha9 = numeric(),
+    alpha10 = numeric(),
+    mean1 = numeric(),
+    mean2 = numeric(),
+    mean3 = numeric(),
+    mean4 = numeric(),
+    mean5 = numeric(),
+    mean6 = numeric(),
+    mean7 = numeric(),
+    mean8 = numeric(),
+    mean9 = numeric(),
+    mean10 = numeric(),
+    sd1 = numeric(),
+    sd2 = numeric(),
+    sd3 = numeric(),
+    sd4 = numeric(),
+    sd5 = numeric(),
+    sd6 = numeric(),
+    sd7 = numeric(),
+    sd8 = numeric(),
+    sd9 = numeric(),
+    sd10 = numeric(),
+    lbf_variable1 = numeric(),
+    lbf_variable2 = numeric(),
+    lbf_variable3 = numeric(),
+    lbf_variable4 = numeric(),
+    lbf_variable5 = numeric(),
+    lbf_variable6 = numeric(),
+    lbf_variable7 = numeric(),
+    lbf_variable8 = numeric(),
+    lbf_variable9 = numeric(),
+    lbf_variable10 = numeric()
+  )
 }
 
 #Export high purity credible set results only
