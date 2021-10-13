@@ -226,12 +226,15 @@ extractResults <- function(susie_object){
   return(list(cs_df = cs_df, variant_df = variant_df))
 }
 
-
 #Import all files
 expression_matrix = readr::read_tsv(opt$expression_matrix)
 sample_metadata = utils::read.csv(opt$sample_meta, sep = '\t', stringsAsFactors = F)
 phenotype_meta = utils::read.csv(opt$phenotype_meta, sep = "\t", stringsAsFactors = F)
 covariates_matrix = importQtlmapCovariates(opt$covariates)
+
+#Exclude covariates with zero variance
+exclude_cov = apply(covariates_matrix, 2, sd) == 0
+covariates_matrix = covariates_matrix[,exclude_cov]
 
 #Import list of phenotypes for finemapping
 if (opt$permuted == "true"){
