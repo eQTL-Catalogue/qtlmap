@@ -233,7 +233,7 @@ phenotype_meta = utils::read.csv(opt$phenotype_meta, sep = "\t", stringsAsFactor
 covariates_matrix = importQtlmapCovariates(opt$covariates)
 
 #Exclude covariates with zero variance
-exclude_cov = apply(covariates_matrix, 2, sd) == 0
+exclude_cov = apply(covariates_matrix, 2, sd) != 0
 covariates_matrix = covariates_matrix[,exclude_cov]
 
 #Import list of phenotypes for finemapping
