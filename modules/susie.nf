@@ -1,5 +1,5 @@
 process run_susie{
-    container = 'quay.io/eqtlcatalogue/susier:v21.08.1'
+    container = 'quay.io/eqtlcatalogue/susier:v21.10.1'
 
     input:
     tuple val(qtl_subset), file(expression_matrix), file(phenotype_meta), file(sample_meta), file(phenotype_list), file(covariates), file(genotype_matrix), file(genotype_matrix_index)
