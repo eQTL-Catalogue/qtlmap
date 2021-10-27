@@ -20,7 +20,8 @@ process run_susie{
      --cisdistance ${params.cis_window}\
      --out_prefix '${qtl_subset}.${batch_index}_${params.n_batches}'\
      --eqtlutils null\
-     --permuted true
+     --permuted true\
+     --skip_full ${params.susie_skip_full}
     """
 }
 

@@ -32,7 +32,9 @@ option_list <- list(
   optparse::make_option(c("--eqtlutils"), type="character", default=NULL,
               help="Optional path to the eQTLUtils R package location. If not specified then eQTLUtils is assumed to be installed in the container. [default \"%default\"]", metavar = "type"),
   optparse::make_option(c("--permuted"), type="character", default="true",
-                        help="If 'false', lead variants were extracted from nominal p-value files. [default \"%default\"]", metavar = "type")
+                        help="If 'false', lead variants were extracted from nominal p-value files. [default \"%default\"]", metavar = "type"),
+  optparse::make_option(c("--skip_full"), type="character", default="false",
+                        help="If 'true' then full SuSiE output will not be written to disk. [default \"%default\"]", metavar = "type")
   
 )
 
@@ -51,7 +53,8 @@ if(FALSE){
              out_prefix = "./finemapping_output",
              eqtlutils = "../eQTLUtils/",
              qtl_group = "LCL",
-             permuted = "true"
+             permuted = "true",
+             skip_full = "false"
   )
 }
 
@@ -318,6 +321,96 @@ if(length(selected_phenotypes) > 0){
   variant_df = dplyr::tibble()
 }
 
+#Define empty data frames
+empty_variant_df = dplyr::tibble(
+  molecular_trait_id = character(),
+  variant = character(),
+  chromosome = numeric(),
+  position = numeric(),
+  ref = character(),
+  alt = character(),
+  cs_id = character(),
+  cs_index = character(),
+  low_purity = character(),
+  finemapped_region = character(),
+  pip = numeric(),
+  z = numeric(),
+  posterior_mean = numeric(),
+  posterior_sd = numeric(),
+  alpha1 = numeric(),
+  alpha2 = numeric(),
+  alpha3 = numeric(),
+  alpha4 = numeric(),
+  alpha5 = numeric(),
+  alpha6 = numeric(),
+  alpha7 = numeric(),
+  alpha8 = numeric(),
+  alpha9 = numeric(),
+  alpha10 = numeric(),
+  mean1 = numeric(),
+  mean2 = numeric(),
+  mean3 = numeric(),
+  mean4 = numeric(),
+  mean5 = numeric(),
+  mean6 = numeric(),
+  mean7 = numeric(),
+  mean8 = numeric(),
+  mean9 = numeric(),
+  mean10 = numeric(),
+  sd1 = numeric(),
+  sd2 = numeric(),
+  sd3 = numeric(),
+  sd4 = numeric(),
+  sd5 = numeric(),
+  sd6 = numeric(),
+  sd7 = numeric(),
+  sd8 = numeric(),
+  sd9 = numeric(),
+  sd10 = numeric(),
+  lbf_variable1 = numeric(),
+  lbf_variable2 = numeric(),
+  lbf_variable3 = numeric(),
+  lbf_variable4 = numeric(),
+  lbf_variable5 = numeric(),
+  lbf_variable6 = numeric(),
+  lbf_variable7 = numeric(),
+  lbf_variable8 = numeric(),
+  lbf_variable9 = numeric(),
+  lbf_variable10 = numeric()
+)
+
+empty_cs_df = dplyr::tibble(
+  molecular_trait_id = numeric(),
+  cs_id = numeric(),
+  cs_index = numeric(),
+  finemapped_region = numeric(),
+  cs_log10bf = numeric(),
+  cs_avg_r2 = numeric(),
+  cs_min_r2 = numeric(),
+  cs_size = numeric(),
+  low_purity = numeric()
+)
+
+empty_in_cs_variant_df = dplyr::tibble(
+  molecular_trait_id = character(),
+  variant = character(),
+  chromosome = numeric(),
+  position = numeric(),
+  ref = numeric(),
+  alt = numeric(),
+  cs_id = numeric(),
+  cs_index = numeric(),
+  finemapped_region = numeric(),
+  pip = numeric(),
+  z = numeric(),
+  cs_min_r2 = numeric(),
+  cs_avg_r2 = numeric(),
+  cs_size = numeric(),
+  posterior_mean = numeric(),
+  posterior_sd = numeric(),
+  cs_log10bf = numeric()
+)
+
 if(nrow(cs_df) > 0){
   cs_df = dplyr::left_join(cs_df, region_df, by = "phenotype_id") %>%
     dplyr::mutate(cs_index = cs_id) %>%
@@ -330,37 +423,8 @@ if(nrow(cs_df) > 0){
                      ref, alt, cs_id, cs_index, finemapped_region, pip, z, cs_min_r2, cs_avg_r2, cs_size, posterior_mean, posterior_sd, cs_log10bf)
 } else{
   #Initialize empty tibbles with correct column names
-  in_cs_variant_df = dplyr::tibble(
-    molecular_trait_id = character(),
-    variant = character(),
-    chromosome = numeric(),
-    position = numeric(),
-    ref = numeric(),
-    alt = numeric(),
-    cs_id = numeric(),
-    cs_index = numeric(),
-    finemapped_region = numeric(),
-    pip = numeric(),
-    z = numeric(),
-    cs_min_r2 = numeric(),
-    cs_avg_r2 = numeric(),
-    cs_size = numeric(),
-    posterior_mean = numeric(),
-    posterior_sd = numeric(),
-    cs_log10bf = numeric()
-  )
-  
-  cs_df = dplyr::tibble(
-    molecular_trait_id = numeric(),
-    cs_id = numeric(),
-    cs_index = numeric(),
-    finemapped_region = numeric(),
-    cs_log10bf = numeric(),
-    cs_avg_r2 = numeric(),
-    cs_min_r2 = numeric(),
-    cs_size = numeric(),
-    low_purity = numeric()
-  )
+  in_cs_variant_df = empty_in_cs_variant_df
+  cs_df = empty_cs_df
 }
 
 #Extract information about all variants
@@ -368,68 +432,18 @@ if(nrow(variant_df) > 0){
   variant_df_transmute <- dplyr::transmute(variant_df, molecular_trait_id = phenotype_id, variant = variant_id, chromosome = chr, position = pos, ref, alt, cs_id, cs_index, low_purity, finemapped_region, pip, z, posterior_mean, posterior_sd)  
   variant_df <- dplyr::bind_cols(variant_df_transmute, dplyr::select(variant_df,alpha1:lbf_variable10))
 } else{
-  variant_df = dplyr::tibble(
-    molecular_trait_id = character(),
-    variant = character(),
-    chromosome = numeric(),
-    position = numeric(),
-    ref = character(),
-    alt = character(),
-    cs_id = character(),
-    cs_index = character(),
-    low_purity = character(),
-    finemapped_region = character(),
-    pip = numeric(),
-    z = numeric(),
-    posterior_mean = numeric(),
-    posterior_sd = numeric(),
-    alpha1 = numeric(),
-    alpha2 = numeric(),
-    alpha3 = numeric(),
-    alpha4 = numeric(),
-    alpha5 = numeric(),
-    alpha6 = numeric(),
-    alpha7 = numeric(),
-    alpha8 = numeric(),
-    alpha9 = numeric(),
-    alpha10 = numeric(),
-    mean1 = numeric(),
-    mean2 = numeric(),
-    mean3 = numeric(),
-    mean4 = numeric(),
-    mean5 = numeric(),
-    mean6 = numeric(),
-    mean7 = numeric(),
-    mean8 = numeric(),
-    mean9 = numeric(),
-    mean10 = numeric(),
-    sd1 = numeric(),
-    sd2 = numeric(),
-    sd3 = numeric(),
-    sd4 = numeric(),
-    sd5 = numeric(),
-    sd6 = numeric(),
-    sd7 = numeric(),
-    sd8 = numeric(),
-    sd9 = numeric(),
-    sd10 = numeric(),
-    lbf_variable1 = numeric(),
-    lbf_variable2 = numeric(),
-    lbf_variable3 = numeric(),
-    lbf_variable4 = numeric(),
-    lbf_variable5 = numeric(),
-    lbf_variable6 = numeric(),
-    lbf_variable7 = numeric(),
-    lbf_variable8 = numeric(),
-    lbf_variable9 = numeric(),
-    lbf_variable10 = numeric()
-  )
+  variant_df = empty_variant_df
 }
 
 #Export high purity credible set results only
 write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 
 #Export all other results
-write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+if(opt$skip_full == "true"){
+  write.table(empty_cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(empty_variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+} else{
+  write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+}
 
