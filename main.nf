@@ -53,6 +53,7 @@ def helpMessage() {
     Fine mapping (SuSiE)
       --run_susie                   Perform eQTL fine mapping with SuSiE
       --vcf_genotype_field          Field in the VCF file that is used to construct the dosage matrix. Valid options are GT and DS (default: GT). 
+      --susie_skip_full             Avoid writing full SuSiE output to disk. (default: false).
 
     Format results:
       --reformat_sumstats          Add rsid and median TPM columns to the nominal summary statistics files and perform additional formatting to make the files compatible with the eQTL Catalogue (default: true)
@@ -142,8 +143,8 @@ summary['Pipeline Name']        = 'eQTL-Catalogue/qtlmap'
 summary['Pipeline Version']     = workflow.manifest.version
 summary['Run Name']             = custom_runName ?: workflow.runName
 summary['Study file']           = params.studyFile
-summary['Cis window']           = params.cis_window
-summary['Minimum Cis variants'] = params.mincisvariant
+summary['cis window']           = params.cis_window
+summary['Min # cis variants']   = params.mincisvariant
 summary['VCF has R2 field']     = params.vcf_has_R2_field
 summary['Permutation run']      = params.run_permutation
 summary['# of permutations']    = params.n_permutations
@@ -152,6 +153,9 @@ summary['# of batches']         = params.n_batches
 summary['# of phenotype PCs']   = params.n_pheno_pcs
 summary['# of genotype PCs']    = params.n_geno_pcs
 summary['Additonal covariates'] = params.covariates
+summary["Run SuSiE"]            = params.run_susie
+summary["Skip SuSiE full"]      = params.susie_skip_full
+summary["VCF genotype field"]   = params.vcf_genotype_field
 summary['Max Memory']           = params.max_memory
 summary['Max CPUs']             = params.max_cpus
 summary['Max Time']             = params.max_time
