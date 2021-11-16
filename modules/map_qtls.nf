@@ -3,7 +3,7 @@
  */
 process run_permutation {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    container = 'quay.io/eqtlcatalogue/qtltools:v1.3.1'
 
     input:
     each batch_index
@@ -35,7 +35,7 @@ process merge_permutation_batches {
     script:
     """
     cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
-    cut -f 1,6,7,8,10,11,12,18,19,20,21 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}.permuted.tsv.gz
+    cut -f 1,6,7,8,10,11,12,18,20,21,22 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}.permuted.tsv.gz
     """
 }
 
