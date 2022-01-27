@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 /*
 ========================================================================================
-                         kerimoff/qtlmap
+                          eQTL-Catalogue/qtlmap
 ========================================================================================
  eQTL-Catalogue/qtlmap Analysis Pipeline.
  #### Homepage / Documentation
