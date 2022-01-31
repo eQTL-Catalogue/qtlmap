@@ -11,15 +11,10 @@ First, install docker on your system: [Docker Installation Instructions](https:/
 
 Then, simply run the analysis pipeline:
 ```bash
-nextflow run eQTL-Catalogue -profile docker --studyFile ...
+nextflow run eQTL-Catalogue/qtlmap -profile docker --studyFile ...
 ```
 
 Nextflow will recognise `eQTL-Catalogue/qtlmap` and download the pipeline from GitHub. The `-profile docker` configuration lists the [eQTL-Catalogue/qtlmap](https://quay.io/repository/eqtlcatalogue/qtlmap?tag=v20.05.1) image that we have created and is hosted at quay.io, and this is downloaded.
-
-
-### Pipeline versions
-The public docker images are tagged with the same version numbers as the code, which you can use to ensure reproducibility. When running the pipeline, specify the pipeline version with `-r`, for example `-r 1.0`. This uses pipeline code and docker image from this tagged version.
-
 
 ## Singularity image
 Many HPC environments are not able to run Docker due to security issues. [Singularity](http://singularity.lbl.gov/) is a tool designed to run on such HPC systems which is very similar to Docker. Even better, it can use create images directly from dockerhub or any other image repository.
