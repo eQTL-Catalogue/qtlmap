@@ -74,11 +74,11 @@ Be warned of two important points about this default configuration:
 #### 3.1) Software deps: Docker
 First, install docker on your system: [Docker Installation Instructions](https://docs.docker.com/engine/installation/)
 
-Then, running the pipeline with the option `-profile docker` tells Nextflow to enable Docker for this run. An image containing all of the software requirements will be automatically fetched and used from dockerhub (https://hub.docker.com/r/nfcore/qtlmap).
+Then, running the pipeline with the option `-profile docker` tells Nextflow to enable Docker for this run. An image containing all of the software requirements will be automatically fetched and used from quay.io (https://quay.io/repository/eqtlcatalogue/qtlmap).
 
 #### 3.1) Software deps: Singularity
 If you're not able to use Docker then [Singularity](http://singularity.lbl.gov/) is a great alternative.
-The process is very similar: running the pipeline with the option `-profile singularity` tells Nextflow to enable singularity for this run. An image containing all of the software requirements will be automatically fetched and used from singularity hub.
+The process is very similar: running the pipeline with the option `-profile singularity` tells Nextflow to enable singularity for this run. An image containing all of the software requirements will be automatically fetched and used from quay.io.
 
 #### 3.2) Software deps: conda
 If you're not able to use Docker _or_ Singularity, you can instead use conda to manage the software requirements.
