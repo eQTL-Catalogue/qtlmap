@@ -178,6 +178,7 @@ log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
 include { vcf_set_variant_ids } from './modules/vcf_set_variant_ids'
+include { build_connected_components; extract_lead_cc_signal } from './modules/extract_cc_signal'
 include { extract_variant_info } from './modules/extract_variant_info'
 include { extract_variant_info as extract_variant_info2 } from './modules/extract_variant_info'
 include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './modules/prepare_molecular_traits'
@@ -245,6 +246,11 @@ workflow {
     if (params.run_nominal & params.run_permutation & params.run_susie & !params.susie_skip_full){
       extract_cs_variants( sort_susie.out.join(tabix_index.out) )
       merge_cs_sumstats( extract_cs_variants.out )
+    }
+
+    if (params.filter_by_cc) {
+      build_connected_components(sort_susie.out.join(study_file_ch))
+      extract_lead_cc_signal(build_connected_components.out.join(tabix_index.out))
     }
 }
 
