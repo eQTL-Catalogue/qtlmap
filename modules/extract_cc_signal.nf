@@ -12,7 +12,8 @@ process build_connected_components {
     tuple val(qtl_subset), file(susie_purity_filtered), file(expression_matrix), file(phenotype_metadata), file(sample_metadata)
 
     output: 
-    tuple val(qtl_subset), file("*.txt")
+    tuple val(qtl_subset), file("*.txt"), emit: cc_signals_phenotypes
+    path("${qtl_subset}_with_stats.tsv")
 
     script:
     """

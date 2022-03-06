@@ -250,7 +250,7 @@ workflow {
 
     if (params.filter_by_cc) {
       build_connected_components(sort_susie.out.join(study_file_ch))
-      extract_lead_cc_signal(build_connected_components.out.join(tabix_index.out))
+      extract_lead_cc_signal(build_connected_components.out.cc_signals_phenotypes.join(tabix_index.out))
     }
 }
 

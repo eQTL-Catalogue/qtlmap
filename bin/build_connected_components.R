@@ -88,10 +88,10 @@ message("######### output_dir         : ", output_dir)
 message(" ## Reading susie file")
 susie_naive <- readr::read_tsv(file = susie_file_path, col_types = "cccicccccdddddddd")
 
-message(" ## Reading leafcutter metadata file")
-# leafcutter_metadata <- readr::read_tsv(phenotype_meta_path) %>% 
-#   dplyr::filter(!is.na(gene_id)) %>% 
-#   dplyr::filter(gene_count == 1)
+message(" ## Reading phenotype metadata file")
+phenotype_metadata <- readr::read_tsv(phenotype_meta_path) %>% 
+  dplyr::filter(!is.na(gene_id)) %>% 
+  dplyr::filter(!base::grepl(pattern = ";", x = gene_id, fixed = TRUE))
 
 message(" ## Building Connected-Components")
 susie_naive <- susie_naive %>% dplyr::mutate(cs_uid = paste0(qtl_group_in, "%", cs_id))
@@ -108,9 +108,10 @@ susie_naive_high_pip_var <- susie_naive_filt_cc %>%
   dplyr::ungroup() %>% 
   dplyr::arrange(-pip)
 
-# susie_high_pip_with_gene <- susie_naive_high_pip_var %>% 
-#   dplyr::left_join(leafcutter_metadata %>% dplyr::select(-chromosome), by = c("molecular_trait_id" = "phenotype_id")) %>% 
-#   dplyr::filter(!is.na(gene_id))
+susie_high_pip_with_gene <- susie_naive_high_pip_var %>% 
+  dplyr::left_join(phenotype_metadata %>% dplyr::select(-chromosome), by = c("molecular_trait_id" = "phenotype_id")) %>% 
+  dplyr::filter(!is.na(gene_id))
 
 message(" ## Writing: ", output_dir)
-readr::write_tsv(x = susie_naive_high_pip_var %>% dplyr::select(molecular_trait_id) %>% dplyr::distinct(), file = output_dir, col_names = F)
+readr::write_tsv(x = susie_high_pip_with_gene %>% dplyr::select(molecular_trait_id) %>% dplyr::distinct(), file = output_dir, col_names = F)
+readr::write_tsv(x = susie_high_pip_with_gene, file = paste0(qtl_group_in, "_with_stats.tsv"))
