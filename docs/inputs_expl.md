@@ -1,4 +1,4 @@
-# kerimoff/qtlmap: Input files explanation
+# eQTL-Catalogue/qtlmap: Input files explanation
 
 This pipeline requires 4 mandatory input files:
 

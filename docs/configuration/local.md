@@ -1,44 +1,26 @@
-# kerimoff/qtlmap: Local Configuration
+# eQTL-Catalogue/qtlmap: Local Configuration
 
 If running the pipeline in a local environment, we highly recommend using either Docker or Singularity.
 
 ## Docker
-Docker is a great way to run `kerimoff/qtlmap`, as it manages all software installations and allows the pipeline to be run in an identical software environment across a range of systems.
+Docker is a great way to run `eQTL-Catalogue/qtlmap`, as it manages all software installations and allows the pipeline to be run in an identical software environment across a range of systems.
 
-Nextflow has [excellent integration](https://www.nextflow.io/docs/latest/docker.html) with Docker, and beyond installing the two tools, not much else is required. The `kerimoff/qtlmap` profile comes with a configuration profile for docker, making it very easy to use. This also comes with the required presets to use the AWS iGenomes resource, meaning that if using common reference genomes you just specify the reference ID and it will be automatically downloaded from AWS S3.
+Nextflow has [excellent integration](https://www.nextflow.io/docs/latest/docker.html) with Docker, and beyond installing the two tools, not much else is required. The `eQTL-Catalogue/qtlmap` profile comes with a configuration profile for docker, making it very easy to use. 
 
 First, install docker on your system: [Docker Installation Instructions](https://docs.docker.com/engine/installation/)
 
 Then, simply run the analysis pipeline:
 ```bash
-nextflow run kerimoff/qtlmap -profile docker --expression_matrix abc.tsv ...
+nextflow run eQTL-Catalogue/qtlmap -profile docker --studyFile ...
 ```
 
-Nextflow will recognise `kerimoff/qtlmap` and download the pipeline from GitHub. The `-profile docker` configuration lists the [kerimoff/qtlmap](https://hub.docker.com/r/kerimoff/qtlmap/) image that we have created and is hosted at dockerhub, and this is downloaded.
-
-
-### Pipeline versions
-The public docker images are tagged with the same version numbers as the code, which you can use to ensure reproducibility. When running the pipeline, specify the pipeline version with `-r`, for example `-r 1.0`. This uses pipeline code and docker image from this tagged version.
-
+Nextflow will recognise `eQTL-Catalogue/qtlmap` and download the pipeline from GitHub. The `-profile docker` configuration lists the [eQTL-Catalogue/qtlmap](https://quay.io/repository/eqtlcatalogue/qtlmap?tag=v20.05.1) image that we have created and is hosted at quay.io, and this is downloaded.
 
 ## Singularity image
-Many HPC environments are not able to run Docker due to security issues. [Singularity](http://singularity.lbl.gov/) is a tool designed to run on such HPC systems which is very similar to Docker. Even better, it can use create images directly from dockerhub.
-
-To use the singularity image for a single run, use `-with-singularity`. This will download the docker container from dockerhub and create a singularity image for you dynamically.
-
-If you intend to run the pipeline offline, nextflow will not be able to automatically download the singularity image for you. Instead, you'll have to do this yourself manually first, transfer the image file and then point to that.
-
-First, pull the image file where you have an internet connection:
-
-> NB: The "tag" at the end of this command corresponds to the pipeline version.
-> Make sure that this tag corresponds to the version of the pipeline that you're using
+Many HPC environments are not able to run Docker due to security issues. [Singularity](http://singularity.lbl.gov/) is a tool designed to run on such HPC systems which is very similar to Docker. Even better, it can use create images directly from dockerhub or any other image repository.
 
 ```bash
-singularity pull --name nf-core-qtlmap-latest.img docker://kerimoff/qtlmap:latest
-```
-
-Then transfer this file and run the pipeline with this path:
-
-```bash
-nextflow run /path/to/nf-core-qtlmap -with-singularity /path/to/nf-core-qtlmap-latest.img
+git clone https://github.com/eQTL-Catalogue/qtlmap.git
+cd qtlmap
+nextflow run main.nf -profile singularity,test
 ```

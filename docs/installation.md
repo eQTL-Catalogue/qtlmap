@@ -2,15 +2,17 @@
 
 To start using the nf-core/qtlmap pipeline, follow the steps below:
 
-1. [Install Nextflow](#1-install-nextflow)
-2. [Install the pipeline](#2-install-the-pipeline)
-    * [Automatic](#21-automatic)
-    * [Offline](#22-offline)
-    * [Development](#23-development)
-3. [Pipeline configuration](#3-pipeline-configuration)
-    * [Software deps: Docker and Singularity](#31-software-deps-docker-and-singularity)
-    * [Software deps: Bioconda](#32-software-deps-bioconda)
-    * [Configuration profiles](#33-configuration-profiles)
+- [nf-core/qtlmap: Installation](#nf-coreqtlmap-installation)
+  - [1) Install NextFlow](#1-install-nextflow)
+  - [2) Install the pipeline](#2-install-the-pipeline)
+      - [2.1) Automatic](#21-automatic)
+      - [2.2) Offline](#22-offline)
+      - [2.3) Development](#23-development)
+  - [3) Pipeline configuration](#3-pipeline-configuration)
+      - [3.1) Software deps: Docker](#31-software-deps-docker)
+      - [3.1) Software deps: Singularity](#31-software-deps-singularity)
+      - [3.2) Software deps: conda](#32-software-deps-conda)
+      - [3.3) Configuration profiles](#33-configuration-profiles)
 
 ## 1) Install NextFlow
 Nextflow runs on most POSIX systems (Linux, Mac OSX etc). It can be installed by running the following commands:
@@ -33,17 +35,16 @@ See [nextflow.io](https://www.nextflow.io/) for further instructions on how to i
 ## 2) Install the pipeline
 
 #### 2.1) Automatic
-This pipeline itself needs no installation - NextFlow will automatically fetch it from GitHub if `kerimoff/qtlmap` is specified as the pipeline name.
+This pipeline itself needs no installation - NextFlow will automatically fetch it from GitHub if `eQTL-Catalogue/qtlmap` is specified as the pipeline name.
 
 #### 2.2) Offline
 The above method requires an internet connection so that Nextflow can download the pipeline files. If you're running on a system that has no internet connection, you'll need to download and transfer the pipeline files manually:
 
 ```bash
-wget https://github.com/kerimoff/qtlmap/archive/master.zip
-mkdir -p ~/my-pipelines/nf-core/
-unzip master.zip -d ~/my-pipelines/nf-core/
-cd ~/my_data/
-nextflow run ~/my-pipelines/nf-core/qtlmap-master
+git clone https://github.com/eQTL-Catalogue/qtlmap.git
+cd qtlmap
+nextflow run main.nf -profile docker,test
+# nextflow run main.nf -profile singularity,test
 ```
 
 To stop nextflow from looking for updates online, you can tell it to run in offline mode by specifying the following environment variable in your ~/.bashrc file:
@@ -73,11 +74,11 @@ Be warned of two important points about this default configuration:
 #### 3.1) Software deps: Docker
 First, install docker on your system: [Docker Installation Instructions](https://docs.docker.com/engine/installation/)
 
-Then, running the pipeline with the option `-profile docker` tells Nextflow to enable Docker for this run. An image containing all of the software requirements will be automatically fetched and used from dockerhub (https://hub.docker.com/r/nfcore/qtlmap).
+Then, running the pipeline with the option `-profile docker` tells Nextflow to enable Docker for this run. An image containing all of the software requirements will be automatically fetched and used from quay.io (https://quay.io/repository/eqtlcatalogue/qtlmap).
 
 #### 3.1) Software deps: Singularity
 If you're not able to use Docker then [Singularity](http://singularity.lbl.gov/) is a great alternative.
-The process is very similar: running the pipeline with the option `-profile singularity` tells Nextflow to enable singularity for this run. An image containing all of the software requirements will be automatically fetched and used from singularity hub.
+The process is very similar: running the pipeline with the option `-profile singularity` tells Nextflow to enable singularity for this run. An image containing all of the software requirements will be automatically fetched and used from quay.io.
 
 #### 3.2) Software deps: conda
 If you're not able to use Docker _or_ Singularity, you can instead use conda to manage the software requirements.

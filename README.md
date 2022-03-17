@@ -1,4 +1,4 @@
-# eQTL-Catlogue/qtlmap
+# eQTL-Catalogue/qtlmap
 **Portable eQTL analysis and statistical fine mapping workflow used by the eQTL Catalogue**
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A50.32.0-brightgreen.svg)](https://www.nextflow.io/)
@@ -8,7 +8,7 @@
 
 ### Introduction
 
-**eQTL-Catlogue/qtlmap** is a bioinformatics analysis pipeline used for QTL Analysis.
+**eQTL-Catalogue/qtlmap** is a bioinformatics analysis pipeline used for QTL Analysis.
 
 The workflow takes phenotype count matrix (normalized and quality controlled) and genotype data as input, and finds associations between them with the help of sample metadata and phenotype metadata files (See [Input formats and preparation](docs/inputs_expl.md) for required input file details). To map QTLs, pipeline uses [QTLTools's](https://qtltools.github.io/qtltools/) PCA and RUN methods. For manipulation of files [BcfTools](https://samtools.github.io/bcftools/bcftools.html), [Tabix](http://www.htslib.org/doc/tabix.html) and custom [Rscript](https://www.rdocumentation.org/packages/utils/versions/3.5.3/topics/Rscript) scripts are used.
 
@@ -16,7 +16,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a bioinformatic
 
 
 ### Documentation
-The eQTL-Catlogue/qtlmap pipeline comes with documentation about the pipeline, found in the `docs/` directory:
+The eQTL-Catalogue/qtlmap pipeline comes with documentation about the pipeline, found in the `docs/` directory:
 
 1. [Installation](docs/installation.md)
 2. Pipeline configuration
@@ -51,3 +51,4 @@ Column names of the output files are explained [here](https://github.com/eQTL-Ca
 * Nurlan Kerimov
 * Kaur Alasoo
 * Masahiro Kanai
+* Ralf Tambets
