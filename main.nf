@@ -178,6 +178,7 @@ log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
 include { vcf_set_variant_ids } from './modules/vcf_set_variant_ids'
+include { extract_lead_cc_signal } from './modules/extract_cc_signal'
 include { extract_variant_info } from './modules/extract_variant_info'
 include { extract_variant_info as extract_variant_info2 } from './modules/extract_variant_info'
 include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './modules/prepare_molecular_traits'
@@ -242,10 +243,13 @@ workflow {
     }
 
     //Extract credible set variants from the full summary statistics
-    if (params.run_nominal & params.run_permutation & params.run_susie & !params.susie_skip_full){
+    if (params.run_nominal & params.run_permutation & params.run_susie){
+      extract_lead_cc_signal(sort_susie.out.join(tabix_index.out))
       extract_cs_variants( sort_susie.out.join(tabix_index.out) )
       merge_cs_sumstats( extract_cs_variants.out )
     }
+
+    
 }
 
 /*

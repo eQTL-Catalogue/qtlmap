@@ -42,19 +42,19 @@ opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
 
 #Debugging
 if(FALSE){
-  opt = list(phenotype_list = "testdata/Kasela_2017.T-cell_CD4_microarray.permuted.txt.gz",
-             cisdistance = 200000,
-             genotype_matrix = "testdata/GEUVADIS_genotypes.dose.tsv.gz",
-             covariates = "testdata/GEUVADIS_test_ge.covariates.txt",
-             expression_matrix = "testdata/GEUVADIS_cqn.tsv",
-             sample_meta = "testdata/GEUVADIS_sample_metadata.tsv",
-             phenotype_meta = "testdata/GEUVADIS_phenotype_metadata.tsv",
-             chunk = "1 1",
+  opt = list(phenotype_list = "/Users/kerimov/Work/temp_files/debug/d915622f46c4f4382e8c43479c27a1/Alasoo_2018_leafcutter_macrophage_naive.tsv.permuted.tsv.gz",
+             cisdistance = 500000,
+             genotype_matrix = "/Users/kerimov/Work/temp_files/debug/d915622f46c4f4382e8c43479c27a1/macrophage_naive.dose.tsv.gz",
+             covariates = "/Users/kerimov/Work/temp_files/debug/d915622f46c4f4382e8c43479c27a1/Alasoo_2018_leafcutter_macrophage_naive.tsv.covariates.txt",
+             expression_matrix = "/Users/kerimov/Work/temp_files/debug/d915622f46c4f4382e8c43479c27a1/Alasoo_2018.macrophage_naive.tsv.gz",
+             sample_meta = "/Users/kerimov/Work/temp_files/debug/d915622f46c4f4382e8c43479c27a1/Alasoo_2018_subset_sample_metadata.tsv",
+             phenotype_meta = "/Users/kerimov/Work/temp_files/debug/d915622f46c4f4382e8c43479c27a1/leafcutter_metadata.txt.gz",
+             chunk = "1 50",
              out_prefix = "./finemapping_output",
              eqtlutils = "../eQTLUtils/",
              qtl_group = "LCL",
              permuted = "true",
-             skip_full = "false"
+             skip_full = "true"
   )
 }
 
@@ -229,6 +229,62 @@ extractResults <- function(susie_object){
   return(list(cs_df = cs_df, variant_df = variant_df))
 }
 
+make_connected_components_from_cs <- function(susie_all_df, z_threshold = 3, cs_size_threshold = 10) {
+  # Filter the credible sets by Z-score and size
+  susie_filt_all <- susie_all_df %>%
+    dplyr::group_by(gene_id) %>%
+    dplyr::mutate(max_abs_z = max(abs(z))) %>%
+    dplyr::filter(max_abs_z > z_threshold, cs_size < cs_size_threshold) %>%
+    dplyr::ungroup()
+  
+  susie_highest_pip_per_cc <- data.frame()
+  
+  uniq_genes = susie_filt_all$gene_id %>% base::unique()
+  # make the ranges object in order to find overlaps
+  for (uniq_gene in uniq_genes) {
+    susie_filt <- susie_filt_all %>% dplyr::filter(gene_id == uniq_gene)
+    message("Processing CC of gene: ", uniq_gene)
+
+    cs_ranges = GenomicRanges::GRanges(
+      seqnames = susie_filt$chromosome,
+      ranges = IRanges::IRanges(start = susie_filt$position, end = susie_filt$position),
+      strand = "*",
+      mcols = data.frame(molecular_trait_id = susie_filt$molecular_trait_id, variant_id = susie_filt$variant, gene_id = susie_filt$gene_id)
+    )
+    
+    # find overlaps and remove the duplicated
+    olaps <-  GenomicRanges::findOverlaps(cs_ranges, cs_ranges, ignore.strand = TRUE) %>%
+      GenomicRanges::as.data.frame() %>%
+      dplyr::filter(queryHits <= subjectHits)
+    
+    # change variant sharing into credible set sharing 
+    # not to have multiple connected components of variants but credible sets
+    olaps <- olaps %>% dplyr::mutate(cs_mol_1 = cs_ranges$mcols.molecular_trait_id[queryHits], cs_mol_2 = cs_ranges$mcols.molecular_trait_id[subjectHits])
+    edge_list <- olaps %>% dplyr::select(cs_mol_1, cs_mol_2) %>% BiocGenerics::unique() %>% base::as.matrix()
+    
+    # make the graph of connected components
+    g <- igraph::graph_from_edgelist(edge_list, directed = F)
+    g_cc <- igraph::components(g)
+    
+    # turn connected components graph into data frame
+    cc_df <- data.frame(cc_membership_no = g_cc$membership, 
+                        molecular_trait_id = g_cc$membership %>% names()) 
+    
+    susie_highest_pip_per_cc_temp <- susie_filt %>% 
+      dplyr::left_join(cc_df, by = "molecular_trait_id") %>% 
+      dplyr::group_by(cc_membership_no) %>% 
+      dplyr::arrange(-pip) %>% 
+      dplyr::slice(1) %>% 
+      dplyr::ungroup()
+    
+    susie_highest_pip_per_cc <- susie_highest_pip_per_cc %>% base::rbind(susie_highest_pip_per_cc_temp)
+  }
+  
+  return(susie_highest_pip_per_cc)
+}
+
+
+
 #Import all files
 expression_matrix = readr::read_tsv(opt$expression_matrix)
 sample_metadata = utils::read.csv(opt$sample_meta, sep = '\t', stringsAsFactors = F)
@@ -273,53 +329,6 @@ se = eQTLUtils::makeSummarizedExperimentFromCountMatrix(assay = expression_matri
                                                          quant_method = "gene_counts",
                                                          reformat = FALSE)
 
-#If qtl_group is not specified, then use the first value in the qtl_group column of the sample metadata
-if(is.null(opt$qtl_group)){
-  opt$qtl_group = se$qtl_group[1]
-}
-
-#Split phenotype list into chunks
-chunk_vector = strsplit(opt$chunk, split = " ") %>% unlist() %>% as.numeric()
-chunk_id = chunk_vector[1]
-n_chunks = chunk_vector[2]
-selected_chunk = splitIntoChunks(chunk_id, n_chunks, length(phenotype_list$phenotype_id))
-selected_phenotypes = phenotype_list$phenotype_id[selected_chunk] %>% setNames(as.list(.), .)
-
-#Only proceed if the there are more than 0 phenotypes
-if(length(selected_phenotypes) > 0){
-  #Check that the qtl_group is valid and subset
-  assertthat::assert_that(opt$qtl_group %in% unique(se$qtl_group))
-  selected_qtl_group = eQTLUtils::subsetSEByColumnValue(se, "qtl_group", opt$qtl_group)
-  
-  #Apply finemapping to all genes
-  results = purrr::map(selected_phenotypes, ~finemapPhenotype(., selected_qtl_group, 
-                                                              genotype_file, covariates_matrix, cis_distance))
-  
-  #Define fine-mapped regions
-  region_df = dplyr::transmute(phenotype_list, phenotype_id, finemapped_region = paste0("chr", chromosome, ":", 
-                                                                                        phenotype_pos - cis_distance, "-",
-                                                                                        phenotype_pos + cis_distance))
-  #Extract credible sets from finemapping results
-  res = purrr::map(results, extractResults) %>%
-    purrr::transpose()
-  
-  #Extract information about all variants
-  variant_df <- purrr::map_df(res$variant_df, identity, .id = "phenotype_id")
-  if(nrow(variant_df) > 0){
-    variant_df <- variant_df %>%
-      dplyr::left_join(region_df, by = "phenotype_id") %>%
-      tidyr::separate(variant_id, c("chr", "pos", "ref", "alt"),sep = "_", remove = FALSE) %>%
-      dplyr::mutate(chr = stringr::str_remove_all(chr, "chr")) %>%
-      dplyr::mutate(cs_index = cs_id) %>%
-      dplyr::mutate(cs_id = paste(phenotype_id, cs_index, sep = "_"))
-  }
-  
-  #Extraxt information about credible sets
-  cs_df <- purrr::map_df(res$cs_df, identity, .id = "phenotype_id")
-} else { #Define empty data frames
-  cs_df = dplyr::tibble()
-  variant_df = dplyr::tibble()
-}
 
 #Define empty data frames
 empty_variant_df = dplyr::tibble(
@@ -411,6 +420,57 @@ empty_in_cs_variant_df = dplyr::tibble(
   cs_log10bf = numeric()
 )
 
+#If qtl_group is not specified, then use the first value in the qtl_group column of the sample metadata
+if(is.null(opt$qtl_group)){
+  opt$qtl_group = se$qtl_group[1]
+}
+
+#Split phenotype list into chunks
+chunk_vector = strsplit(opt$chunk, split = " ") %>% unlist() %>% as.numeric()
+chunk_id = chunk_vector[1]
+n_chunks = chunk_vector[2]
+selected_chunk = splitIntoChunks(chunk_id, n_chunks, length(phenotype_list$phenotype_id))
+selected_phenotypes = phenotype_list$phenotype_id[selected_chunk] %>% setNames(as.list(.), .)
+
+#Only proceed if the there are more than 0 phenotypes
+if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
+  #Check that the qtl_group is valid and subset
+  assertthat::assert_that(opt$qtl_group %in% unique(se$qtl_group))
+  selected_qtl_group = eQTLUtils::subsetSEByColumnValue(se, "qtl_group", opt$qtl_group)
+  
+  #Apply finemapping to all genes
+  results = purrr::map(selected_phenotypes, ~finemapPhenotype(., selected_qtl_group, 
+                                                              genotype_file, covariates_matrix, cis_distance))
+  
+  #Define fine-mapped regions
+  region_df = dplyr::transmute(phenotype_list, phenotype_id, finemapped_region = paste0("chr", chromosome, ":", 
+                                                                                        phenotype_pos - cis_distance, "-",
+                                                                                        phenotype_pos + cis_distance))
+  #Extract credible sets from finemapping results
+  res = purrr::map(results, extractResults) %>%
+    purrr::transpose()
+  
+  #Extract information about all variants
+  variant_df <- purrr::map_df(res$variant_df, identity, .id = "phenotype_id")
+  if(nrow(variant_df) > 0){
+    variant_df <- variant_df %>%
+      dplyr::left_join(region_df, by = "phenotype_id") %>%
+      tidyr::separate(variant_id, c("chr", "pos", "ref", "alt"),sep = "_", remove = FALSE) %>%
+      dplyr::mutate(chr = stringr::str_remove_all(chr, "chr")) %>%
+      dplyr::mutate(cs_index = cs_id) %>%
+      dplyr::mutate(cs_id = paste(phenotype_id, cs_index, sep = "_"))
+  }
+  
+  #Extract information about credible sets
+  cs_df <- purrr::map_df(res$cs_df, identity, .id = "phenotype_id")
+} else { #Define empty data frames
+  write.table(empty_in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(empty_cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(empty_variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  message("No selected_phenotypes found. Write empty matrices and stop")
+  quit(save = "no", status = 0)
+}
+
 if(nrow(cs_df) > 0){
   cs_df = dplyr::left_join(cs_df, region_df, by = "phenotype_id") %>%
     dplyr::mutate(cs_index = cs_id) %>%
@@ -435,15 +495,39 @@ if(nrow(variant_df) > 0){
   variant_df = empty_variant_df
 }
 
-#Export high purity credible set results only
-write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-
-#Export all other results
-if(opt$skip_full == "true"){
-  write.table(empty_cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-} else{
+if (nrow(variant_df) == 0 && nrow(cs_df) == 0 && nrow(in_cs_variant_df) == 0) {
+  write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  message("There are no credible sets. Write empty matrices and stop execution.")
+  quit(save = "no", status = 0)
+} 
+
+in_cs_variant_df <- in_cs_variant_df %>% dplyr::mutate(position = as.numeric(position))
+
+# find how many unique phenotypes there are per gene
+in_cs_variant_gene_df <- in_cs_variant_df %>% 
+  dplyr::left_join(phenotype_meta %>% dplyr::select(phenotype_id, gene_id), by = c("molecular_trait_id" = "phenotype_id")) %>% 
+  dplyr::group_by(gene_id) %>% 
+  dplyr::mutate(uniq_phenotypes_count = length(base::unique(molecular_trait_id))) %>% 
+  dplyr::ungroup()
+
+# if it is gene expression write full sumstats
+if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_id)) {
+  write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+} else { 
+  # generate connected components per gene
+  susie_cc <- make_connected_components_from_cs(susie_all_df = in_cs_variant_gene_df, cs_size_threshold = 200)
+  needed_phenotype_ids <- susie_cc$molecular_trait_id %>% base::unique()
+
+  in_cs_variant_df_filt <- in_cs_variant_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
+  cs_df_filt <- cs_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
+  variant_df_filt <- variant_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
+
+  write.table(in_cs_variant_df_filt, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(cs_df_filt, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  write.table(variant_df_filt, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 }
 
