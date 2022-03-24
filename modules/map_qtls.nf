@@ -3,7 +3,7 @@
  */
 process run_permutation {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-    container = 'quay.io/eqtlcatalogue/qtltools:v1.3.1'
+    container = 'quay.io/eqtlcatalogue/qtltools:v22.03.1'
 
     input:
     each batch_index

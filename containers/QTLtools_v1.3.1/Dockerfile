@@ -12,3 +12,5 @@ RUN apt-get update && apt-get install -y \
    libblas-dev \
    libboost-all-dev \
    libbz2-dev 
+
+COPY bin/QTLtools /usr/bin/
