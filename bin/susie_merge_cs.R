@@ -16,8 +16,36 @@ opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
 #Import data
 credible_sets = read.table(opt$cs_results, header = TRUE, stringsAsFactors = FALSE, check.names = FALSE, sep = "\t") %>%
   dplyr::as_tibble()
+
+if (nrow(credible_sets) == 0) {
+  credible_sets = dplyr::tibble(
+    molecular_trait_id = numeric(),
+    gene_id = numeric(),
+    cs_id = numeric(),
+    variant = numeric(),
+    rsid = numeric(),
+    cs_size = numeric(),
+    pip = numeric(),
+    pvalue = numeric(),
+    beta = numeric(),
+    se = numeric(),
+    z = numeric(),
+    cs_min_r2 = numeric(),
+    finemapped_region = numeric()
+  )
+  
+  #Save file to disk
+  file_handle = gzfile(opt$output,"w")
+  write.table(credible_sets, file_handle, sep = "\t", row.names = F, col.names = T, quote = FALSE)
+  close(file_handle)
+  
+  message("Credible sets matrix is empty. Writing it as an output and stopping execution!")
+  quit(save = "no", status = 0)
+}
+
 sumstats = read.table(opt$sumstats, header = TRUE, stringsAsFactors = FALSE, check.names = FALSE, sep = "\t") %>%
-  dplyr::as_tibble()
+  dplyr::as_tibble() %>%
+  dplyr::filter(molecular_trait_id %in% credible_sets$molecular_trait_id)
 
 #Merge the two tables
 cs_table = dplyr::transmute(credible_sets, molecular_trait_id, variant, cs_id, pip, cs_size, z, cs_min_r2, finemapped_region) %>% 
