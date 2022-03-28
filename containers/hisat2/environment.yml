@@ -1,0 +1,11 @@
+# You can use this file to create a conda environment for this pipeline:
+#   conda env create -f environment.yml
+name: eqtl-catalogue-22.03.01
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::hisat2=2.2.1
+  - samtools=1.9
+  
