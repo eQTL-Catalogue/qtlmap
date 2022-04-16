@@ -101,7 +101,7 @@ splitIntoBatches <- function(n, batch_size){
 splitIntoChunks <- function(chunk_number, n_chunks, n_total){
   chunk_size = max(1,floor(n_total/(n_chunks)))
   batches = splitIntoBatches(n_total,chunk_size)
-  batches[batches > n_chunks] = n_chunks
+  batches[batches > n_chunks] = seq(from = 1, to = length(batches[batches > n_chunks]))
   selected_batch = batches == chunk_number
   return(selected_batch)
 }
@@ -232,24 +232,24 @@ extractResults <- function(susie_object){
 make_connected_components_from_cs <- function(susie_all_df, z_threshold = 3, cs_size_threshold = 10) {
   # Filter the credible sets by Z-score and size
   susie_filt_all <- susie_all_df %>%
-    dplyr::group_by(gene_id) %>%
+    dplyr::group_by(group_id) %>%
     dplyr::mutate(max_abs_z = max(abs(z))) %>%
     dplyr::filter(max_abs_z > z_threshold, cs_size < cs_size_threshold) %>%
     dplyr::ungroup()
   
   susie_highest_pip_per_cc <- data.frame()
   
-  uniq_genes = susie_filt_all$gene_id %>% base::unique()
+  uniq_groups = susie_filt_all$group_id %>% base::unique()
   # make the ranges object in order to find overlaps
-  for (uniq_gene in uniq_genes) {
-    susie_filt <- susie_filt_all %>% dplyr::filter(gene_id == uniq_gene)
-    message("Processing CC of gene: ", uniq_gene)
+  for (uniq_group in uniq_groups) {
+    susie_filt <- susie_filt_all %>% dplyr::filter(group_id == uniq_group)
+    message("Processing CC of group_id: ", uniq_group)
 
     cs_ranges = GenomicRanges::GRanges(
       seqnames = susie_filt$chromosome,
       ranges = IRanges::IRanges(start = susie_filt$position, end = susie_filt$position),
       strand = "*",
-      mcols = data.frame(molecular_trait_id = susie_filt$molecular_trait_id, variant_id = susie_filt$variant, gene_id = susie_filt$gene_id)
+      mcols = data.frame(molecular_trait_id = susie_filt$molecular_trait_id, variant_id = susie_filt$variant, group_id = susie_filt$group_id)
     )
     
     # find overlaps and remove the duplicated
@@ -429,10 +429,19 @@ if(is.null(opt$qtl_group)){
 chunk_vector = strsplit(opt$chunk, split = " ") %>% unlist() %>% as.numeric()
 chunk_id = chunk_vector[1]
 n_chunks = chunk_vector[2]
-selected_chunk = splitIntoChunks(chunk_id, n_chunks, length(phenotype_list$phenotype_id))
-selected_phenotypes = phenotype_list$phenotype_id[selected_chunk] %>% setNames(as.list(.), .)
+
+selected_chunk_group = splitIntoChunks(chunk_id, n_chunks, length(unique(phenotype_list$group_id)))
+selected_group_ids = unique(phenotype_list$group_id)[selected_chunk_group]
+
+selected_phenotypes = phenotype_list %>%
+  dplyr::filter(group_id %in% selected_group_ids) %>%
+  dplyr::pull(phenotype_id) %>%
+  setNames(as.list(.), .)
 
 #Only proceed if the there are more than 0 phenotypes
+message("Number of overall unique group_ids: ", length(unique(phenotype_list$group_id)))
+message("Number of groups in the batch: ", length(selected_group_ids))
+message("Number of phenotypes in the batch: ", length(selected_phenotypes))
 if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
   #Check that the qtl_group is valid and subset
   assertthat::assert_that(opt$qtl_group %in% unique(se$qtl_group))
@@ -447,6 +456,7 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
                                                                                         phenotype_pos - cis_distance, "-",
                                                                                         phenotype_pos + cis_distance))
   #Extract credible sets from finemapping results
+  message(" # Extract credible sets from finemapping results")
   res = purrr::map(results, extractResults) %>%
     purrr::transpose()
   
@@ -507,7 +517,7 @@ in_cs_variant_df <- in_cs_variant_df %>% dplyr::mutate(position = as.numeric(pos
 
 # find how many unique phenotypes there are per gene
 in_cs_variant_gene_df <- in_cs_variant_df %>% 
-  dplyr::left_join(phenotype_meta %>% dplyr::select(phenotype_id, gene_id), by = c("molecular_trait_id" = "phenotype_id")) %>% 
+  dplyr::left_join(phenotype_meta %>% dplyr::select(phenotype_id, gene_id, group_id), by = c("molecular_trait_id" = "phenotype_id")) %>% 
   dplyr::group_by(gene_id) %>% 
   dplyr::mutate(uniq_phenotypes_count = length(base::unique(molecular_trait_id))) %>% 
   dplyr::ungroup()
@@ -519,6 +529,7 @@ if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_i
   write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
 } else { 
   # generate connected components per gene
+  message("Building connected components!")
   susie_cc <- make_connected_components_from_cs(susie_all_df = in_cs_variant_gene_df, cs_size_threshold = 200)
   needed_phenotype_ids <- susie_cc$molecular_trait_id %>% base::unique()
 
