@@ -243,7 +243,7 @@ workflow {
     }
 
     //Extract credible set variants from the full summary statistics
-    if (params.run_nominal & params.run_permutation & params.run_susie){
+    if (params.run_nominal & params.run_permutation & params.run_susie & params.reformat_sumstats){
       extract_lead_cc_signal(sort_susie.out.join(tabix_index.out))
       extract_cs_variants( sort_susie.out.join(tabix_index.out) )
       merge_cs_sumstats( extract_cs_variants.out )
