@@ -46,9 +46,13 @@ if (nrow(credible_sets) == 0) {
 
 message(" ## Reading summary statistics.")
 sumstats = read.table(opt$sumstats, header = TRUE, stringsAsFactors = FALSE, check.names = FALSE, sep = "\t") %>%
-  dplyr::as_tibble() %>%
-  dplyr::filter(molecular_trait_id %in% credible_sets$molecular_trait_id)
+  dplyr::as_tibble() 
 message(" ## Read ", nrow(sumstats), " rows of summary statistics")
+
+message(" ## Filtering summary statistics by credible_set molecular_trait_id.")
+sumstats <- sumstats %>%   
+  dplyr::filter(molecular_trait_id %in% credible_sets$molecular_trait_id)
+message(" ## After filtering there remains ", nrow(sumstats), " rows of summary statistics")
 
 message(" ## Merge the two tables")
 cs_table = dplyr::transmute(credible_sets, molecular_trait_id, variant, cs_id, pip, cs_size, z, cs_min_r2, finemapped_region) %>% 
