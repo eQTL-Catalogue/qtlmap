@@ -9,3 +9,5 @@ test_data/test_results
 singularity*/
 run_scripts_qtlmap/
 .Rhistory
+slurm-*.out
+submit*.sh
