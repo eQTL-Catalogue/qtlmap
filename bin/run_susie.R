@@ -533,6 +533,14 @@ if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_i
   susie_cc <- make_connected_components_from_cs(susie_all_df = in_cs_variant_gene_df, cs_size_threshold = 200)
   needed_phenotype_ids <- susie_cc$molecular_trait_id %>% base::unique()
 
+  # add the signals from permutation results for groups which are nor represented in CC
+  non_cs_groups = setdiff(selected_group_ids, susie_cc$group_id %>% unique())
+  perm_for_non_cs_phenotypes = filtered_list %>% 
+    dplyr::filter(group_id %in% non_cs_groups) %>% 
+    dplyr::pull(molecular_trait_id)
+  message(" ## There are ", non_cs_groups %>% length(), " groups which did not have credible sets")
+  needed_phenotype_ids <- c(needed_phenotype_ids, perm_for_non_cs_phenotypes)
+  
   in_cs_variant_df_filt <- in_cs_variant_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
   cs_df_filt <- cs_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
   variant_df_filt <- variant_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
