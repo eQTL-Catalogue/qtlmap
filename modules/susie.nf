@@ -6,7 +6,7 @@ process run_susie{
     each batch_index
 
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.${batch_index}_${params.n_batches}.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.cred.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.snp.txt")
+    tuple val(qtl_subset), file("${qtl_subset}.${batch_index}_${params.n_batches}.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.cred.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.snp.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.txt")
 
     script:
     """
@@ -30,9 +30,10 @@ process merge_susie{
 
     publishDir "${params.outdir}/susie_full/", mode: 'copy', pattern: "*.cred.txt.gz"
     publishDir "${params.outdir}/susie_full/", mode: 'copy', pattern: "*.snp.txt.gz"
+    publishDir "${params.outdir}/susie_lbf/", mode: 'copy', pattern: "*.lbf_variable.txt.gz"
 
     input:
-    tuple val(qtl_subset), file(in_cs_variant_batch_names), file(credible_set_batch_names), file(variant_batch_names)
+    tuple val(qtl_subset), file(in_cs_variant_batch_names), file(credible_set_batch_names), file(variant_batch_names), file(lbf_variable_batch_names)
     
     output:
     tuple val(qtl_subset), file("${qtl_subset}.txt.gz"), file("${qtl_subset}.cred.txt.gz"), file("${qtl_subset}.snp.txt.gz")
@@ -42,6 +43,7 @@ process merge_susie{
     awk 'NR == 1 || FNR > 1{print}' ${in_cs_variant_batch_names.join(' ')} | gzip -c > ${qtl_subset}.txt.gz
     awk 'NR == 1 || FNR > 1{print}' ${credible_set_batch_names.join(' ')} | gzip -c > ${qtl_subset}.cred.txt.gz
     awk 'NR == 1 || FNR > 1{print}' ${variant_batch_names.join(' ')} | gzip -c > ${qtl_subset}.snp.txt.gz
+    awk 'NR == 1 || FNR > 1{print}' ${lbf_variable_batch_names.join(' ')} | gzip -c > ${qtl_subset}.lbf_variable.txt.gz
     """
 }
 
