@@ -32,7 +32,7 @@ if (nrow(credible_sets) == 0) {
     se = numeric(),
     z = numeric(),
     cs_min_r2 = numeric(),
-    finemapped_region = numeric()
+    region = character()
   )
   
   #Save file to disk
@@ -55,9 +55,9 @@ sumstats <- sumstats %>%
 message(" ## After filtering there remains ", nrow(sumstats), " rows of summary statistics")
 
 message(" ## Merge the two tables")
-cs_table = dplyr::transmute(credible_sets, molecular_trait_id, variant, cs_id, pip, cs_size, z, cs_min_r2, finemapped_region) %>% 
+cs_table = dplyr::transmute(credible_sets, molecular_trait_id, variant, cs_id, pip, cs_size, z, cs_min_r2, region) %>% 
   dplyr::left_join(sumstats, by = c("molecular_trait_id", "variant")) %>%
-  dplyr::select(molecular_trait_id, gene_id, cs_id, variant, rsid, cs_size, pip, pvalue, beta, se, z, cs_min_r2, finemapped_region)
+  dplyr::select(molecular_trait_id, gene_id, cs_id, variant, rsid, cs_size, pip, pvalue, beta, se, z, cs_min_r2, region)
 message(" ## After merge there are ", nrow(sumstats), " rows of merged matrix")
 
 #Save file to disk

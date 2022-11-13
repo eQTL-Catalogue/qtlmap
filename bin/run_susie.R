@@ -483,7 +483,7 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
   
   #Extract lbf variable df and format correctly for export
   lbf_df_res <- purrr::map_df(res$lbf_df, identity, .id = "phenotype_id")
-  if(nrow(lbf_df) > 0){
+  if(nrow(lbf_df_res) > 0){
     lbf_df <- lbf_df_res %>%
       dplyr::left_join(region_df, by = "phenotype_id") %>%
       tidyr::separate(variant_id, c("chromosome", "position", "ref", "alt"),sep = "_", remove = FALSE) %>%
