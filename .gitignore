@@ -11,3 +11,4 @@ run_scripts_qtlmap/
 .Rhistory
 slurm-*.out
 submit*.sh
+.Rproj.user
