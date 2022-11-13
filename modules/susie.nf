@@ -36,7 +36,7 @@ process merge_susie{
     tuple val(qtl_subset), file(in_cs_variant_batch_names), file(credible_set_batch_names), file(variant_batch_names), file(lbf_variable_batch_names)
     
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.txt.gz"), file("${qtl_subset}.cred.txt.gz"), file("${qtl_subset}.snp.txt.gz")
+    tuple val(qtl_subset), file("${qtl_subset}.txt.gz"), file("${qtl_subset}.cred.txt.gz"), file("${qtl_subset}.snp.txt.gz"), file("${qtl_subset}.lbf_variable.txt.gz")
 
     script:
     """
