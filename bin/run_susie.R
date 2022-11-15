@@ -210,13 +210,13 @@ extractResults <- function(susie_object){
   colnames(sd_mat) = paste0("sd", seq(ncol(sd_mat)))
   lbf_variable_mat = t(susie_object$lbf_variable)
   colnames(lbf_variable_mat) = paste0("lbf_variable", seq(ncol(lbf_variable_mat)))
-  posterior_df = dplyr::tibble(variant_id = names(mean_vec), 
+  posterior_df = dplyr::tibble(variant_id = rownames(alpha_mat), 
                                pip = susie_object$pip,
                                z = susie_object$z,
                                posterior_mean = mean_vec, 
                                posterior_sd = sd_vec) %>%
                  dplyr::bind_cols(purrr::map(list(alpha_mat, mean_mat, sd_mat), dplyr::as_tibble))
-  lbf_df = dplyr::tibble(variant_id = names(mean_vec)) %>%
+  lbf_df = dplyr::tibble(variant_id = rownames(lbf_variable_mat)) %>%
     dplyr::bind_cols(dplyr::as_tibble(lbf_variable_mat))
 
   if(nrow(df) > 0 & nrow(purity_df) > 0){
@@ -226,6 +226,7 @@ extractResults <- function(susie_object){
   } else{
     cs_df = NULL
     variant_df = NULL
+    lbf_df = NULL
   }
 
   return(list(cs_df = cs_df, variant_df = variant_df, lbf_df = lbf_df))
