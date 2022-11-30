@@ -12,3 +12,4 @@ run_scripts_qtlmap/
 slurm-*.out
 submit*.sh
 .Rproj.user
+qtlmap.Rproj
