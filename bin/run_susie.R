@@ -31,11 +31,8 @@ option_list <- list(
                         help="Perform analysis in chunks. Eg value 5 10 would indicate that phenotypes are split into 10 chunks and the 5th one of those will be processed. [default \"%default\"]", metavar = "type"),
   optparse::make_option(c("--eqtlutils"), type="character", default=NULL,
               help="Optional path to the eQTLUtils R package location. If not specified then eQTLUtils is assumed to be installed in the container. [default \"%default\"]", metavar = "type"),
-  optparse::make_option(c("--permuted"), type="character", default="true",
-                        help="If 'false', lead variants were extracted from nominal p-value files. [default \"%default\"]", metavar = "type"),
-  optparse::make_option(c("--skip_full"), type="character", default="false",
-                        help="If 'true' then full SuSiE output will not be written to disk. [default \"%default\"]", metavar = "type")
-  
+  optparse::make_option(c("--write_full_susie"), type="character", default="true",
+                        help="If 'true' then full SuSiE output will not be written to disk. Setting this to 'false' will apply credible set connected components based filtering to SuSiE results. [default \"%default\"]", metavar = "type")
 )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
@@ -53,8 +50,7 @@ if(FALSE){
              out_prefix = "./finemapping_output",
              eqtlutils = "../eQTLUtils/",
              qtl_group = "LCL",
-             permuted = "true",
-             skip_full = "true"
+             write_full_susie = "true"
   )
 }
 
@@ -65,6 +61,9 @@ if(opt$eqtlutils == "null"){
 if (!is.null(opt$eqtlutils)){
   devtools::load_all(opt$eqtlutils)
 }
+
+#Set character parameters to boolean
+opt$write_full_susie = as.logical(opt$write_full_susie)
 
 #Print all options
 print(opt)
@@ -299,23 +298,10 @@ exclude_cov = apply(covariates_matrix, 2, sd) != 0
 covariates_matrix = covariates_matrix[,exclude_cov]
 
 #Import list of phenotypes for finemapping
-if (opt$permuted == "true"){
-  phenotype_table = importQtlmapPermutedPvalues(opt$phenotype_list)
-  filtered_list = dplyr::filter(phenotype_table, p_fdr < 0.01)
-  phenotype_list = dplyr::semi_join(phenotype_meta, filtered_list, by = "group_id")
-  message("Number of phenotypes included for analysis: ", nrow(phenotype_list))
-} else {
-  nominal_leads = read.table(opt$phenotype_list, stringsAsFactors = FALSE) %>%
-    dplyr::transmute(phenotype_id = V1, n_variants = V6, p_nominal= V12) %>%
-    dplyr::as_tibble() %>%
-    dplyr::group_by(phenotype_id) %>%
-    dplyr::mutate(p_bonferroni = p.adjust(p_nominal, n = n_variants)) %>%
-    dplyr::ungroup() %>%
-    dplyr::mutate(p_fdr = p.adjust(p_bonferroni, method = "fdr")) %>%
-    dplyr::filter(p_fdr < 0.1) #More lenient threshold for bonferroni correction
-  phenotype_list = dplyr::semi_join(phenotype_meta, nominal_leads, by = "phenotype_id")
-  message("Number of phenotypes included for analysis: ", nrow(phenotype_list))
-}
+phenotype_table = importQtlmapPermutedPvalues(opt$phenotype_list)
+filtered_list = dplyr::filter(phenotype_table, p_fdr < 0.01)
+phenotype_list = dplyr::semi_join(phenotype_meta, filtered_list, by = "group_id")
+message("Number of phenotypes included for analysis: ", nrow(phenotype_list))
 
 #Keep only those phenotypes that are present in the expression matrix
 phenotype_list = dplyr::filter(phenotype_list, phenotype_id %in% expression_matrix$phenotype_id)
@@ -551,7 +537,7 @@ in_cs_variant_gene_df <- in_cs_variant_df %>%
   dplyr::ungroup()
 
 # if it is gene expression write full sumstats
-if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_id)) {
+if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_id) | opt$write_full_susie) {
   write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
