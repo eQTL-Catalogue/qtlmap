@@ -53,7 +53,9 @@ def helpMessage() {
     Fine mapping (SuSiE)
       --run_susie                   Perform eQTL fine mapping with SuSiE
       --vcf_genotype_field          Field in the VCF file that is used to construct the dosage matrix. Valid options are GT and DS (default: GT). 
-      --susie_skip_full             Avoid writing full SuSiE output to disk. (default: false).
+      --write_full_susie            If 'true' then full SuSiE output will not be written to disk (default: true). 
+                                    Setting this to 'false' will apply credible set connected component based filtering to SuSiE results. 
+                                    This helps to reduce the size of SuSiE output for molecular traits with many correlated sub-phenotypes (e.g. Leafcutter splice-junctions).
 
     Format results:
       --reformat_sumstats          Add rsid and median TPM columns to the nominal summary statistics files and perform additional formatting to make the files compatible with the eQTL Catalogue (default: true)
@@ -154,7 +156,7 @@ summary['# of phenotype PCs']   = params.n_pheno_pcs
 summary['# of genotype PCs']    = params.n_geno_pcs
 summary['Additonal covariates'] = params.covariates
 summary["Run SuSiE"]            = params.run_susie
-summary["Skip SuSiE full"]      = params.susie_skip_full
+summary["Write full SuSiE"]     = params.write_full_susie
 summary["VCF genotype field"]   = params.vcf_genotype_field
 summary['Max Memory']           = params.max_memory
 summary['Max CPUs']             = params.max_cpus
