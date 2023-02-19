@@ -218,7 +218,7 @@ extractResults <- function(susie_object){
   lbf_df = dplyr::tibble(variant_id = rownames(lbf_variable_mat)) %>%
     dplyr::bind_cols(dplyr::as_tibble(lbf_variable_mat))
 
-  if(nrow(df) > 0 & nrow(purity_df) > 0){
+  if(nrow(df) > 0 & nrow(purity_df) > 0 & ncol(lbf_df) > 10){ #ncol(lbf_df) <= 10 only if the number of variants in the region is < 10
     cs_df = purity_df
     variant_df = dplyr::left_join(posterior_df, df, by = "variant_id") %>%
       dplyr::left_join(cs_df, by = "cs_id")
