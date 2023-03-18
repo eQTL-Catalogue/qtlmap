@@ -13,3 +13,4 @@ slurm-*.out
 submit*.sh
 .Rproj.user
 qtlmap.Rproj
+GEUVADIS_GBR20

@@ -104,7 +104,7 @@ process sort_qtltools_output {
 
     script:
     """
-    gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S11G --parallel=8 | uniq | \\
+    gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S${params.sumstat_sort_mem} --parallel=${params.sumstat_sort_cores} | uniq | \\
         bgzip > ${qtl_subset}.nominal.sorted.norsid.tsv.gz
     """
 }
