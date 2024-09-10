@@ -123,9 +123,11 @@ Channel.fromPath(params.studyFile)
     .map{row -> [ row.qtl_subset, file(row.tpm_file)]}
     .set { tpm_file_ch }
 
-Channel.fromPath(params.varid_rsid_map_file)
-    .ifEmpty { error "Cannot find varid_rsid_map_file file in: ${params.varid_rsid_map_file}" }
-    .set { rsid_map_ch }
+Channel.fromPath(params.rsid_map_file)
+    .ifEmpty { error "Cannot find rsid file in: ${params.rsid_map_file}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.chr, file(row.rsid_file)]}
+    .set { chr_rsid_map_ch }
 
 // Batch channel
 batch_ch = Channel.of(1..params.n_batches)
@@ -185,10 +187,10 @@ include { extract_variant_info } from './modules/extract_variant_info'
 include { extract_variant_info as extract_variant_info2 } from './modules/extract_variant_info'
 include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './modules/prepare_molecular_traits'
 include { extract_samples_from_vcf } from './modules/extract_samples_from_vcf'
-include { run_permutation; merge_permutation_batches; run_nominal; merge_nominal_batches; sort_qtltools_output} from './modules/map_qtls'
-include { join_rsids_var_info; reformat_sumstats; tabix_index} from './modules/reformat_sumstats'
+include { run_permutation; merge_permutation_batches; run_nominal} from './modules/map_qtls'
 include { vcf_to_dosage } from './modules/vcf_to_dosage'
 include { run_susie; merge_susie; sort_susie; extract_cs_variants; merge_cs_sumstats } from './modules/susie'
+include { generate_sumstat_batches; convert_extracted_variant_info; convert_tmp; convert_pheno_meta} from './modules/generate_sumstat_batches'
 
 workflow {
 
@@ -214,44 +216,43 @@ workflow {
     //Nominal pass
     if( params.run_nominal ){
       run_nominal(batch_ch, qtlmap_input_ch)
-      merge_nominal_batches( run_nominal.out.groupTuple(size: params.n_batches, sort: true) )
-      sort_qtltools_output( merge_nominal_batches.out )
-
-      //Reformat sumstats
       if( params.reformat_sumstats ){
-        extract_variant_info2(extract_samples_from_vcf.out.vcf)
-        join_rsids_var_info( extract_variant_info2.out, rsid_map_ch.collect() )
+        extract_variant_info2(extract_samples_from_vcf.out.vcf) 
+        run_nominal_output= run_nominal.out.map{qtl_group,nominal_file, chromosome,start_pos,end_pos ->[qtl_group,[nominal_file,chromosome,start_pos,end_pos]]}
+        nominal_qtl_subset_grouped = run_nominal_output.groupTuple(size: params.n_batches)
+        all_nominal_qtl_subset_grouped = nominal_qtl_subset_grouped.map{qtl_group,nominal_run_data ->[qtl_group,nominal_run_data.flatten()]}
+        convert_extracted_variant_info(extract_variant_info2.out)
+        convert_tmp(tpm_file_ch)
+        convert_pheno_meta(prepare_molecular_traits.out.pheno_meta)
+        all_nominal_qtl_subset_info = all_nominal_qtl_subset_grouped
+          .join(convert_extracted_variant_info.out) 
+          .join(convert_pheno_meta.out) 
+          .join(convert_tmp.out)
+        splited_nominal_qtl_subset_info_ch = all_nominal_qtl_subset_info
+            .flatMap { qtl_group, nominal_run_files_regions, extracted_variant_info, pheno_meta, tpm_file ->
+              nominal_run_files_regions.collate(4)
+            .collect { nominal_run_file -> [qtl_group, nominal_run_file, extracted_variant_info, pheno_meta, tpm_file] }}
+        nominal_qtl_subset_info_correct_format_ch = splited_nominal_qtl_subset_info_ch.map { qtl_group, nominal_run_file_region_list, extracted_variant_info, pheno_meta, tpm_file ->
+          def nominal_file = nominal_run_file_region_list[0]
+          def chr = nominal_run_file_region_list[1]
+          def start = nominal_run_file_region_list[2]
+          def end = nominal_run_file_region_list[3]
+          [chr, start, end, qtl_group, nominal_file, extracted_variant_info, pheno_meta, tpm_file]}
         
-        reformat_input_ch = sort_qtltools_output.out
-          .join(join_rsids_var_info.out)
-          .join(prepare_molecular_traits.out.pheno_meta)
-          .join(tpm_file_ch)
-
-        reformat_sumstats( reformat_input_ch )
-        tabix_index(reformat_sumstats.out)
+        generate_sumstat_batches_input_ch = chr_rsid_map_ch.cross(nominal_qtl_subset_info_correct_format_ch).map { rsid_data, nominal_data -> 
+          def chromosome = rsid_data[0]  
+          def rsid_map = rsid_data[1]    
+          def start = nominal_data[1]    
+          def end = nominal_data[2]      
+          def qtl_group = nominal_data[3] 
+          def nominal_file = nominal_data[4]  
+          def extracted_variant_info = nominal_data[5]  
+          def pheno_meta = nominal_data[6]  
+          def tpm_file = nominal_data[7]
+          [qtl_group, rsid_map, chromosome, start, end, nominal_file, extracted_variant_info, pheno_meta, tpm_file]}
+        generate_sumstat_batches(generate_sumstat_batches_input_ch)
       }
     }
-
-    //Run SuSiE
-    if( params.run_permutation & params.run_susie ){
-      vcf_to_dosage(extract_samples_from_vcf.out.vcf)
-      susie_ch = study_file_ch
-        .join(merge_permutation_batches.out)
-        .join(make_pca_covariates.out)
-        .join(vcf_to_dosage.out)
-      run_susie(susie_ch, batch_ch)
-      merge_susie( run_susie.out.groupTuple(size: params.n_batches, sort: true) )
-      sort_susie( merge_susie.out )
-    }
-
-    //Extract credible set variants from the full summary statistics
-    if (params.run_nominal & params.run_permutation & params.run_susie & params.reformat_sumstats){
-      extract_lead_cc_signal(sort_susie.out.join(tabix_index.out))
-      extract_cs_variants( sort_susie.out.join(tabix_index.out) )
-      merge_cs_sumstats( extract_cs_variants.out )
-    }
-
-    
 }
 
 /*
