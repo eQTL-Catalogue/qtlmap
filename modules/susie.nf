@@ -1,12 +1,14 @@
 process run_susie{
     container = 'quay.io/eqtlcatalogue/susier:v21.10.2'
+    publishDir "${params.outdir}/susie_rds/", mode: 'copy', pattern: "*.rds"
 
     input:
     tuple val(qtl_subset), file(expression_matrix), file(phenotype_meta), file(sample_meta), file(phenotype_list), file(covariates), file(genotype_matrix), file(genotype_matrix_index)
     each batch_index
 
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.${batch_index}_${params.n_batches}.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.cred.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.snp.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.txt")
+    tuple val(qtl_subset), file("${qtl_subset}.${batch_index}_${params.n_batches}.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.cred.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.snp.txt"), file("${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.txt"), emit: merge
+    tuple val(qtl_subset), file("${qtl_subset}.${batch_index}_${params.n_batches}.rds"), emit: rds
 
     script:
     """

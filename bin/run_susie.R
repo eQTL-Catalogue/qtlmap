@@ -447,6 +447,8 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
   #Apply finemapping to all genes
   results = purrr::map(selected_phenotypes, ~finemapPhenotype(., selected_qtl_group, 
                                                               genotype_file, covariates_matrix, cis_distance))
+  #Export finemapping results into an RDS file
+  saveRDS(results, paste0(opt$out_prefix, ".rds"))
   
   #Define fine-mapped regions
   region_df = dplyr::transmute(phenotype_list, phenotype_id, region = paste0("chr", chromosome, ":", 
@@ -484,12 +486,17 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
   
   #Extract information about credible sets
   cs_df <- purrr::map_df(res$cs_df, identity, .id = "phenotype_id")
-} else { #Wrtie empty data frames
+} else { #Write empty data frames
+  message("No selected_phenotypes found. Write empty matrices and stop")
   write.table(empty_in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   write.table(empty_cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   write.table(empty_variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
   write.table(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  message("No selected_phenotypes found. Write empty matrices and stop")
+  
+  #Write empty rds file
+  results = list()
+  saveRDS(results, paste0(opt$out_prefix, ".rds"))
+  
   quit(save = "no", status = 0)
 }
 
