@@ -253,6 +253,17 @@ workflow {
         generate_sumstat_batches(generate_sumstat_batches_input_ch)
       }
     }
+    //Run SuSiE
+    if( params.run_permutation & params.run_susie ){
+      vcf_to_dosage(extract_samples_from_vcf.out.vcf)
+      susie_ch = study_file_ch
+        .join(merge_permutation_batches.out)
+        .join(make_pca_covariates.out)
+        .join(vcf_to_dosage.out)
+      run_susie(susie_ch, batch_ch)
+      //merge_susie( run_susie.out.groupTuple(size: params.n_batches, sort: true) )
+      //sort_susie( merge_susie.out )
+    }
 }
 
 /*

@@ -6,6 +6,7 @@ suppressPackageStartupMessages(library("Rsamtools"))
 suppressPackageStartupMessages(library("readr"))
 suppressPackageStartupMessages(library("tidyr"))
 suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("arrow"))
 
 option_list <- list(
   #TODO look around if there is a package recognizing delimiter in dataset
@@ -485,10 +486,8 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
   #Extract information about credible sets
   cs_df <- purrr::map_df(res$cs_df, identity, .id = "phenotype_id")
 } else { #Wrtie empty data frames
-  write.table(empty_in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  arrow::write_parquet(empty_in_cs_variant_df, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.parquet"))
   message("No selected_phenotypes found. Write empty matrices and stop")
   quit(save = "no", status = 0)
 }
@@ -519,10 +518,8 @@ if(nrow(variant_df) > 0){
 }
 
 if (nrow(variant_df) == 0 && nrow(cs_df) == 0 && nrow(in_cs_variant_df) == 0) {
-  write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  arrow::write_parquet(in_cs_variant_df, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.parquet"))
   message("There are no credible sets. Write empty matrices and stop execution.")
   quit(save = "no", status = 0)
 } 
@@ -538,10 +535,8 @@ in_cs_variant_gene_df <- in_cs_variant_df %>%
 
 # if it is gene expression write full sumstats
 if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_id) | opt$write_full_susie) {
-  write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(lbf_df, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  arrow::write_parquet(in_cs_variant_df, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(lbf_df, paste0(opt$out_prefix, ".lbf_variable.parquet"))
 } else { 
   # generate connected components per gene
   message("Building connected components!")
@@ -552,10 +547,7 @@ if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_i
   cs_df_filt <- cs_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
   variant_df_filt <- variant_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
   lbf_df_filt <- lbf_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
-
-  write.table(in_cs_variant_df_filt, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(cs_df_filt, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(variant_df_filt, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(lbf_df_filt, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  arrow::write_parquet(in_cs_variant_df_filt, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(lbf_df_filt, paste0(opt$out_prefix, ".lbf_variable.parquet"))
 }
 
