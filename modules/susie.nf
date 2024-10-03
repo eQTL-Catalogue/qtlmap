@@ -1,5 +1,4 @@
 process run_susie{
-    //container = 'quay.io/eqtlcatalogue/susier:v21.10.2'
     container = 'quay.io/kfkf33/susier'
 
     input:
@@ -7,8 +6,8 @@ process run_susie{
     each batch_index
 
     output:
-    tuple val(qtl_subset), path("${qtl_subset}.${batch_index}_${params.n_batches}.parquet"), path("${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.parquet")
-
+    tuple val(qtl_subset), path("${qtl_subset}.${batch_index}_${params.n_batches}.parquet"), emit: in_cs_variant_batch 
+    tuple val(qtl_subset), path("${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.parquet"), emit: lbf_variable_batch
     script:
     """
     Rscript $baseDir/bin/run_susie.R --expression_matrix ${expression_matrix}\
@@ -36,7 +35,7 @@ process merge_susie{
     tuple val(qtl_subset), file(in_cs_variant_batch_names), file(credible_set_batch_names), file(variant_batch_names), file(lbf_variable_batch_names)
     
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.txt.gz"), file("${qtl_subset}.cred.txt.gz"), file("${qtl_subset}.snp.txt.gz"), file("${qtl_subset}.lbf_variable.txt.gz")
+    tuple val(qtl_subset), file("${qtl_subset}.txt.gz"), file("${qtl_subset}.cred.txt.gz"), file("${qtl_subset}.snp.txt.gz"), file("${qtl_subset}.lbf_variable.txt.gz") // TODO concate sort
 
     script:
     """

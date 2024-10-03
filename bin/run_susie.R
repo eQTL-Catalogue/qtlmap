@@ -324,8 +324,8 @@ se = eQTLUtils::makeSummarizedExperimentFromCountMatrix(assay = expression_matri
 empty_variant_df = dplyr::tibble(
   molecular_trait_id = character(),
   variant = character(),
-  chromosome = numeric(),
-  position = numeric(),
+  chromosome = character(),
+  position = integer(),
   ref = character(),
   alt = character(),
   cs_id = character(),
@@ -372,8 +372,8 @@ empty_lbf_df = dplyr::tibble(
   molecular_trait_id = character(),
   region = character(),
   variant = character(),
-  chromosome = numeric(),
-  position = numeric(),
+  chromosome = character(),
+  position = integer(),
   lbf_variable1 = numeric(),
   lbf_variable2 = numeric(),
   lbf_variable3 = numeric(),
@@ -401,18 +401,18 @@ empty_cs_df = dplyr::tibble(
 empty_in_cs_variant_df = dplyr::tibble(
   molecular_trait_id = character(),
   variant = character(),
-  chromosome = numeric(),
-  position = numeric(),
-  ref = numeric(),
-  alt = numeric(),
-  cs_id = numeric(),
-  cs_index = numeric(),
+  chromosome = character(),
+  position = integer(),
+  ref = character(),
+  alt = character(),
+  cs_id = character(),
+  cs_index = character(),
   region = character(),
   pip = numeric(),
   z = numeric(),
   cs_min_r2 = numeric(),
   cs_avg_r2 = numeric(),
-  cs_size = numeric(),
+  cs_size = integer(),
   posterior_mean = numeric(),
   posterior_sd = numeric(),
   cs_log10bf = numeric()
@@ -479,6 +479,7 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
       dplyr::select(-ref, -alt) %>%
       dplyr::rename(molecular_trait_id = phenotype_id, variant = variant_id) %>%
       dplyr::select(molecular_trait_id, region, variant, chromosome, position, lbf_variable1:lbf_variable10)
+    lbf_df <- lbf_df %>% dplyr::mutate(position = as.integer(position))
   } else {
     lbf_df = empty_lbf_df
   }

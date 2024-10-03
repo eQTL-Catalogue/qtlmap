@@ -261,7 +261,7 @@ workflow {
         .join(make_pca_covariates.out)
         .join(vcf_to_dosage.out)
       run_susie(susie_ch, batch_ch)
-      //merge_susie( run_susie.out.groupTuple(size: params.n_batches, sort: true) )
+      //merge_susie( run_susie.out.groupTuple(size: params.n_batches, sort: true) )  // TODO: concate both files, order by chr and pos
       //sort_susie( merge_susie.out )
     }
 }
