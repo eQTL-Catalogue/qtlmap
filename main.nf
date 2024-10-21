@@ -182,14 +182,14 @@ log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "========================================="
 
 include { vcf_set_variant_ids } from './modules/vcf_set_variant_ids'
-include { extract_lead_cc_signal } from './modules/extract_cc_signal'
 include { extract_variant_info } from './modules/extract_variant_info'
 include { extract_variant_info as extract_variant_info2 } from './modules/extract_variant_info'
 include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './modules/prepare_molecular_traits'
 include { extract_samples_from_vcf } from './modules/extract_samples_from_vcf'
 include { run_permutation; merge_permutation_batches; run_nominal} from './modules/map_qtls'
 include { vcf_to_dosage } from './modules/vcf_to_dosage'
-include { run_susie; merge_susie; sort_susie; extract_cs_variants; merge_cs_sumstats } from './modules/susie'
+include { run_susie; concatenate_pq_files; merge_cs_sumstats } from './modules/susie'
+include { concatenate_pq_files as concatenate_pq_files2 } from './modules/susie'
 include { generate_sumstat_batches; convert_extracted_variant_info; convert_tmp; convert_pheno_meta} from './modules/generate_sumstat_batches'
 
 workflow {
@@ -228,17 +228,16 @@ workflow {
           .join(convert_extracted_variant_info.out) 
           .join(convert_pheno_meta.out) 
           .join(convert_tmp.out)
-        splited_nominal_qtl_subset_info_ch = all_nominal_qtl_subset_info
+        nominal_qtl_subset_info_correct_format_ch = all_nominal_qtl_subset_info
             .flatMap { qtl_group, nominal_run_files_regions, extracted_variant_info, pheno_meta, tpm_file ->
               nominal_run_files_regions.collate(4)
             .collect { nominal_run_file -> [qtl_group, nominal_run_file, extracted_variant_info, pheno_meta, tpm_file] }}
-        nominal_qtl_subset_info_correct_format_ch = splited_nominal_qtl_subset_info_ch.map { qtl_group, nominal_run_file_region_list, extracted_variant_info, pheno_meta, tpm_file ->
-          def nominal_file = nominal_run_file_region_list[0]
-          def chr = nominal_run_file_region_list[1]
-          def start = nominal_run_file_region_list[2]
-          def end = nominal_run_file_region_list[3]
-          [chr, start, end, qtl_group, nominal_file, extracted_variant_info, pheno_meta, tpm_file]}
-        
+            .map { qtl_group, nominal_run_file_region_list, extracted_variant_info, pheno_meta, tpm_file ->
+              def nominal_file = nominal_run_file_region_list[0]
+              def chr = nominal_run_file_region_list[1]
+              def start = nominal_run_file_region_list[2]
+              def end = nominal_run_file_region_list[3]
+              [chr, start, end, qtl_group, nominal_file, extracted_variant_info, pheno_meta, tpm_file]}        
         generate_sumstat_batches_input_ch = chr_rsid_map_ch.cross(nominal_qtl_subset_info_correct_format_ch).map { rsid_data, nominal_data -> 
           def chromosome = rsid_data[0]  
           def rsid_map = rsid_data[1]    
@@ -261,8 +260,17 @@ workflow {
         .join(make_pca_covariates.out)
         .join(vcf_to_dosage.out)
       run_susie(susie_ch, batch_ch)
-      //merge_susie( run_susie.out.groupTuple(size: params.n_batches, sort: true) )  // TODO: concate both files, order by chr and pos
-      //sort_susie( merge_susie.out )
+      grouped_susie_cs = run_susie.out.in_cs_variant_batch.groupTuple( size: params.n_batches)
+      concatenate_pq_files(grouped_susie_cs, "merged_susie")
+      concatenate_pq_files.out
+      .combine(generate_sumstat_batches.out, by: 0)  
+      .map { qtl_subset, merged_parquet_file, sumstat_batch, chrom, start_pos, end_pos ->
+        return tuple(qtl_subset, sumstat_batch, chrom, start_pos, end_pos, merged_parquet_file)
+          }
+      .set { merged_susie_sumstat_ch }
+      merge_cs_sumstats(merged_susie_sumstat_ch)
+      grouped_merge_cs_sumstats = merge_cs_sumstats.out.groupTuple(size: params.n_batches)
+      concatenate_pq_files2(grouped_merge_cs_sumstats, "credible_sets")
     }
 }
 

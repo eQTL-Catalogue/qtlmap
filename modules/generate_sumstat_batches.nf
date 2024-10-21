@@ -7,7 +7,7 @@ process generate_sumstat_batches {
     tuple val(qtl_subset), path(rsid_map), val(chr),val(start_pos),val(end_pos), path(summ_stats_batch),path(var_info), path(phenotype_metadata), path(median_tpm)
 
     output:
-    tuple val(qtl_subset), path("${qtl_subset}_chr_${region}.parquet")
+    tuple val(qtl_subset), path("${qtl_subset}_chr_${region}.parquet"), val(chr), val(start_pos), val(end_pos)
 
     script:
     region = chr + "_" + start_pos + "_" + end_pos
