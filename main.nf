@@ -132,6 +132,16 @@ Channel.fromPath(params.rsid_map_file)
 // Batch channel
 batch_ch = Channel.of(1..params.n_batches)
 
+// Fetch the pipeline version from Git tags
+def pipelineVersion = "v0.0.0" // Default version in case git command fails
+
+// Try to fetch the version from Git
+try {
+    pipelineVersion = "git describe --tags".execute().text.trim()
+} catch (Exception e) {
+    log.warn "Could not retrieve the pipeline version from Git. Using default version $pipelineVersion."
+}
+
 // Header log info
 log.info """=======================================================
                                           ,--./,-.
@@ -140,11 +150,11 @@ log.info """=======================================================
     | \\| |       \\__, \\__/ |  \\ |___     \\`-._,-`-,
                                           `._,._,\'
 
-eQTL-Catalogue/qtlmap v${workflow.manifest.version}"
+eQTL-Catalogue/qtlmap ${pipelineVersion}"
 ======================================================="""
 def summary = [:]
-summary['Pipeline Name']        = 'eQTL-Catalogue/qtlmap'
-summary['Pipeline Version']     = workflow.manifest.version
+summary['Pipeline Name']        = workflow.manifest.name
+summary['Pipeline Version']     = pipelineVersion
 summary['Run Name']             = custom_runName ?: workflow.runName
 summary['Study file']           = params.studyFile
 summary['cis window']           = params.cis_window
