@@ -196,10 +196,11 @@ include { extract_variant_info } from './modules/extract_variant_info'
 include { extract_variant_info as extract_variant_info2 } from './modules/extract_variant_info'
 include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './modules/prepare_molecular_traits'
 include { extract_samples_from_vcf } from './modules/extract_samples_from_vcf'
-include { run_permutation; merge_permutation_batches; run_nominal} from './modules/map_qtls'
+include { run_permutation; merge_permutation_batches; run_nominal;convert_merged_permutation_txt_to_pq} from './modules/map_qtls'
 include { vcf_to_dosage } from './modules/vcf_to_dosage'
 include { run_susie; concatenate_pq_files; merge_cs_sumstats } from './modules/susie'
-include { concatenate_pq_files as concatenate_pq_files2 } from './modules/susie'
+include { concatenate_pq_files as concatenate_pq_files_credible_sets } from './modules/susie'
+include { concatenate_pqs_wo_sorting; sort_pq_file } from './modules/susie'
 include { generate_sumstat_batches; convert_extracted_variant_info; convert_tmp; convert_pheno_meta} from './modules/generate_sumstat_batches'
 
 workflow {
@@ -222,6 +223,7 @@ workflow {
     if( params.run_permutation ){
       run_permutation(batch_ch, qtlmap_input_ch)
       merge_permutation_batches( run_permutation.out.groupTuple(size: params.n_batches, sort: true) )
+      convert_merged_permutation_txt_to_pq(merge_permutation_batches.out)
     }
     //Nominal pass
     if( params.run_nominal ){
@@ -280,7 +282,10 @@ workflow {
       .set { merged_susie_sumstat_ch }
       merge_cs_sumstats(merged_susie_sumstat_ch)
       grouped_merge_cs_sumstats = merge_cs_sumstats.out.groupTuple(size: params.n_batches)
-      concatenate_pq_files2(grouped_merge_cs_sumstats, "credible_sets")
+      concatenate_pq_files_credible_sets(grouped_merge_cs_sumstats, "credible_sets")
+      grouped_susie_lbf = run_susie.out.lbf_variable_batch.groupTuple( size: params.n_batches)
+      concatenate_pqs_wo_sorting(grouped_susie_lbf, "lbf_variable")
+      sort_pq_file(concatenate_pqs_wo_sorting.out)
     }
 }
 

@@ -1,6 +1,6 @@
 process generate_sumstat_batches {
     tag "${qtl_subset}"
-    publishDir "${params.outdir}/sumstats_batches/${qtl_subset}", mode: 'copy', pattern: "${qtl_subset}_chr*.parquet"
+    publishDir "${params.outdir}/nominal_sumstats_batches/${qtl_subset}", mode: 'copy', pattern: "${qtl_subset}_chr*.parquet"
     container = 'quay.io/kfkf33/duckdb_env'
 
     input:
@@ -37,8 +37,10 @@ process convert_extracted_variant_info {
 
     script:
     """
-    $baseDir/bin/convert_extracted_variant_info.py \
-        -v $variant_info \
+    $baseDir/bin/convert_txt_to_pq.py \
+        -i $variant_info \
+        -c chromosome,position,variant,ref,alt,type,ac,an,r2 \
+        -s '{"chromosome":"VARCHAR","position":"INTEGER","variant":"VARCHAR","ref":"VARCHAR","alt":"VARCHAR","type":"VARCHAR","ac":"INTEGER","an":"INTEGER","maf":"DOUBLE","r2":"VARCHAR"}' \
         -o ${qtl_subset}_${variant_info.simpleName}.parquet
     """
 }
@@ -55,8 +57,9 @@ process convert_tmp {
 
     script:
     """
-    $baseDir/bin/convert_tmp.py \
-        -m $tmp_file \
+     $baseDir/bin/convert_txt_to_pq.py \
+        -i $tmp_file \
+        -c phenotype_id,median_tpm \
         -o ${qtl_subset}_${tmp_file.simpleName}.parquet
     """
 }
@@ -73,8 +76,9 @@ process convert_pheno_meta {
 
     script:
     """
-    $baseDir/bin/convert_phenotype_metadata.py \
-        -m $phenotype_metadata \
+    $baseDir/bin/convert_txt_to_pq.py \
+        -i $phenotype_metadata \
+        -c phenotype_id,group_id,gene_id \
         -o ${qtl_subset}_${phenotype_metadata.simpleName}.parquet
     """
 }

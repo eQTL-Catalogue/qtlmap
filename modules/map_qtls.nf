@@ -23,19 +23,38 @@ process run_permutation {
  */
 process merge_permutation_batches {
     tag "${qtl_subset}"
-    publishDir "${params.outdir}/sumstats", mode: 'copy'
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(batch_file_names)
 
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.permuted.tsv.gz")
+    tuple val(qtl_subset), file("${qtl_subset}_permuted.tsv.gz")
 
     script:
     """
     cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
-    cut -f 1,6,7,8,10,11,12,18,20,21,22 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}.permuted.tsv.gz
+    cut -f 1,6,7,8,10,11,12,18,20,21,22 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}_permuted.tsv.gz
+    """
+}
+
+process convert_merged_permutation_txt_to_pq {
+    tag "${qtl_subset}"
+    publishDir "${params.outdir}/permutation_sumstats", mode: 'copy'
+    container = 'quay.io/kfkf33/duckdb_env'
+
+    input:
+    tuple val(qtl_subset), path(input_file)
+
+    output:
+    tuple val(qtl_subset), path("${input_file.simpleName}.parquet")
+
+    script:
+    """
+    $baseDir/bin/convert_txt_to_pq.py \
+        -i $input_file \
+        -c molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta \
+        -o ${input_file.simpleName}.parquet
     """
 }
 
