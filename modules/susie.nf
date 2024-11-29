@@ -1,7 +1,8 @@
 process run_susie{
     container = 'quay.io/kfkf33/susier'
-    publishDir "${params.outdir}/susie_full/${qtl_subset}/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.parquet"
-    publishDir "${params.outdir}/susie_full_lbf/${qtl_subset}/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.parquet"
+    publishDir "${params.outdir}/susie_batches/${qtl_subset}/cs/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.parquet"
+    publishDir "${params.outdir}/susie_batches/${qtl_subset}/lbf/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.parquet"
+    publishDir "${params.outdir}/susie_batches/${qtl_subset}/full/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.full_susie.parquet"
 
     input:
     tuple val(qtl_subset), file(expression_matrix), file(phenotype_meta), file(sample_meta), file(phenotype_list), file(covariates), file(genotype_matrix), file(genotype_matrix_index)
@@ -10,6 +11,8 @@ process run_susie{
     output:
     tuple val(qtl_subset), path("${qtl_subset}.${batch_index}_${params.n_batches}.parquet"), emit: in_cs_variant_batch 
     tuple val(qtl_subset), path("${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.parquet"), emit: lbf_variable_batch
+    tuple val(qtl_subset), path("${qtl_subset}.${batch_index}_${params.n_batches}.full_susie.parquet"), emit: full_susie_batch
+
     script:
     """
     Rscript $baseDir/bin/run_susie.R --expression_matrix ${expression_matrix}\
