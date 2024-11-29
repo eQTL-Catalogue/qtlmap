@@ -40,21 +40,21 @@ process merge_permutation_batches {
 
 process convert_merged_permutation_txt_to_pq {
     tag "${qtl_subset}"
-    publishDir "${params.outdir}/permutation_sumstats", mode: 'copy'
+    publishDir "${params.outdir}/sumstats/${qtl_subset}", mode: 'copy'
     container = 'quay.io/kfkf33/duckdb_env'
 
     input:
     tuple val(qtl_subset), path(input_file)
 
     output:
-    tuple val(qtl_subset), path("${input_file.simpleName}.parquet")
+    tuple val(qtl_subset), path("${qtl_subset}.permuted.parquet")
 
     script:
     """
     $baseDir/bin/convert_txt_to_pq.py \
         -i $input_file \
         -c molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta \
-        -o ${input_file.simpleName}.parquet
+        -o ${qtl_subset}.permuted.parquet
     """
 }
 

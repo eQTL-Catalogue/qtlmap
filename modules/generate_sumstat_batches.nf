@@ -1,6 +1,6 @@
 process generate_sumstat_batches {
     tag "${qtl_subset}"
-    publishDir "${params.outdir}/nominal_sumstats_batches/${qtl_subset}", mode: 'copy', pattern: "${qtl_subset}_chr*.parquet"
+    publishDir "${params.outdir}/sumstats/${qtl_subset}/all/", mode: 'copy', pattern: "${qtl_subset}_chr*.parquet"
     container = 'quay.io/kfkf33/duckdb_env'
 
     input:
