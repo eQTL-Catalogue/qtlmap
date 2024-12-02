@@ -202,6 +202,8 @@ include { run_susie; concatenate_pq_files; merge_cs_sumstats } from './modules/s
 include { concatenate_pq_files as concatenate_pq_files_credible_sets } from './modules/susie'
 include { concatenate_pqs_wo_sorting; sort_pq_file } from './modules/susie'
 include { generate_sumstat_batches; convert_extracted_variant_info; convert_tmp; convert_pheno_meta} from './modules/generate_sumstat_batches'
+include { extract_unique_molecular_trait_id; extract_lead_cc_signal } from './modules/extract_cc_signal'
+
 
 workflow {
 
@@ -274,6 +276,15 @@ workflow {
       run_susie(susie_ch, batch_ch)
       grouped_susie_cs = run_susie.out.in_cs_variant_batch.groupTuple( size: params.n_batches)
       concatenate_pq_files(grouped_susie_cs, "merged_susie")
+      extract_unique_molecular_trait_id(concatenate_pq_files.out)
+      sumstat_batches_crossed_uniq_mol_trait_ids = extract_unique_molecular_trait_id.out.cross(generate_sumstat_batches.out)
+      extract_lead_cc_signal_ch = sumstat_batches_crossed_uniq_mol_trait_ids.map { nested_item ->
+          def (unique_trait, batch) = nested_item
+          def (qtl_subset, unique_molecular_trait_ids) = unique_trait
+          def (batch_qtl_subset, batch_file, chr, start_pos, end_pos) = batch
+          tuple(qtl_subset, unique_molecular_trait_ids, batch_file, chr, start_pos, end_pos)
+      }
+      extract_lead_cc_signal(extract_lead_cc_signal_ch)
       concatenate_pq_files.out
       .combine(generate_sumstat_batches.out, by: 0)  
       .map { qtl_subset, merged_parquet_file, sumstat_batch, chrom, start_pos, end_pos ->
