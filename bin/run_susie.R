@@ -512,6 +512,7 @@ if(all(!is.na(selected_phenotypes)) && length(selected_phenotypes) > 0){
 } else { #Write empty data frames
   arrow::write_parquet(empty_in_cs_variant_df, paste0(opt$out_prefix, ".parquet"))
   arrow::write_parquet(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.parquet"))
+  arrow::write_parquet(empty_variant_df, paste0(opt$out_prefix, ".full_susie.parquet"))
   message("No selected_phenotypes found. Write empty matrices and stop")
   quit(save = "no", status = 0)
 }
