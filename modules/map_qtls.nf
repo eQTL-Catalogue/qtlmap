@@ -41,7 +41,7 @@ process merge_permutation_batches {
 process convert_merged_permutation_txt_to_pq {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats/${qtl_subset}", mode: 'copy'
-    container = 'quay.io/kfkf33/duckdb_env'
+    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
     tuple val(qtl_subset), path(input_file)
