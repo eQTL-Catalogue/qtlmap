@@ -3,8 +3,6 @@
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A50.32.0-brightgreen.svg)](https://www.nextflow.io/)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg)](http://bioconda.github.io/)
-[![Docker](https://img.shields.io/docker/automated/kerimoff/qtlmap.svg)](https://hub.docker.com/r/kerimoff/qtlmap)
-[![https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/2842)
 
 ### Introduction
 
