@@ -10,7 +10,7 @@ argparser.add_argument('-v', help='The variant info file, extracted from vcf', r
 argparser.add_argument('-r', help='The variant_id rsid map file', required=True)
 argparser.add_argument('-s', help='The summary_statistics file (nominal run output)', required=True)
 argparser.add_argument('-p', help='The phenotype metadata file', required=True)
-argparser.add_argument('-m', help='The median_tpm file', required=True)
+argparser.add_argument('-m', help='The median_tpm file', required=False, default=None)
 argparser.add_argument('-o', help='The output file name', required=True)
 argparser.add_argument('-a', help='Starting position', required=True,type=int)
 argparser.add_argument('-b', help='Ending position', required=True,type=int)
@@ -33,6 +33,19 @@ def main():
     start = time.time()
     con = duckdb.connect()
 
+        # If median_tpm file exists, join it. Otherwise, default to NULL.
+    if median_tmp_file:
+        median_tpm_query = f"""
+            LEFT JOIN (
+                SELECT phenotype_id, median_tpm 
+                FROM read_parquet('{median_tmp_file}')
+            ) AS mt ON nro.molecular_trait_id = mt.phenotype_id
+        """
+        median_tpm_column = "mt.median_tpm"
+    else:
+        median_tpm_query = ""
+        median_tpm_column = "NULL AS median_tpm"  # Now NULL instead of -1
+
     con.execute(f"""
         COPY (
             SELECT 
@@ -53,7 +66,7 @@ def main():
                 vi.r2, 
                 pm.group_id AS molecular_trait_object_id, 
                 pm.gene_id, 
-                mt.median_tpm, 
+                {median_tpm_column}, 
                 rm.rsid
             FROM read_csv_auto('{nominal_run_output}', delim='\t', header=False, 
                     columns={{'molecular_trait_id': 'VARCHAR', 'variant': 'VARCHAR', 'X': 'VARCHAR', 
@@ -81,10 +94,7 @@ def main():
                 FROM read_parquet('{rsid_map_file}')
                 WHERE position BETWEEN {start_pos} AND {end_pos}
             ) AS rm ON nro.variant = rm.variant
-            LEFT JOIN (
-                SELECT phenotype_id, median_tpm 
-                FROM read_parquet('{median_tmp_file}')
-            ) AS mt ON nro.molecular_trait_id = mt.phenotype_id
+            {median_tpm_query}
             LEFT JOIN (
                 SELECT phenotype_id, group_id, gene_id 
                 FROM read_parquet('{phenotype_metadata}')

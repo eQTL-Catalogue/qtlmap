@@ -10,6 +10,7 @@ process generate_sumstat_batches {
     tuple val(qtl_subset), path("${qtl_subset}_chr_${region}.parquet"), val(chr), val(start_pos), val(end_pos)
 
     script:
+    median_tpm_arg = median_tpm ? "-m $median_tpm" : ""
     region = chr + "_" + start_pos + "_" + end_pos
 
     """
@@ -18,10 +19,11 @@ process generate_sumstat_batches {
         -v $var_info \
         -r $rsid_map \
         -p $phenotype_metadata \
-        -m $median_tpm \
+        -o ${qtl_subset}_chr_${region}.parquet \
         -a $start_pos \
         -b $end_pos \
-        -o ${qtl_subset}_chr_${region}.parquet
+        $median_tpm_arg
+        
     """
 }
 
@@ -56,11 +58,14 @@ process convert_tmp {
     tuple val(qtl_subset), path("${qtl_subset}_${tmp_file.simpleName}.parquet")
 
     script:
+    median_tpm_arg = tmp_file ? "-i $tmp_file" : ""
+
     """
      $baseDir/bin/convert_txt_to_pq.py \
-        -i $tmp_file \
+        -o ${qtl_subset}_${tmp_file.simpleName}.parquet \
+        -t 1 \
         -c phenotype_id,median_tpm \
-        -o ${qtl_subset}_${tmp_file.simpleName}.parquet
+        $median_tpm_arg
     """
 }
 

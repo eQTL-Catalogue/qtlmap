@@ -117,10 +117,19 @@ Channel.fromPath(params.studyFile)
     .set { vcf_file_ch }
 
 //Another one for the TPM file that is only needed in the end
-Channel.fromPath(params.studyFile)
+/*Channel.fromPath(params.studyFile)
     .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
     .splitCsv(header: true, sep: '\t', strip: true)
     .map{row -> [ row.qtl_subset, file(row.tpm_file)]}
+    .set { tpm_file_ch }*/
+
+Channel.fromPath(params.studyFile)
+    .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map { row -> 
+        def tpm = row.containsKey('tpm_file') && row.tpm_file ? file(row.tpm_file) : null
+        [ row.qtl_subset, tpm ]
+    }
     .set { tpm_file_ch }
 
 Channel.fromPath(params.rsid_map_file)
@@ -295,8 +304,8 @@ workflow {
       grouped_merge_cs_sumstats = merge_cs_sumstats.out.groupTuple(size: params.n_batches)
       concatenate_pq_files_credible_sets(grouped_merge_cs_sumstats, "credible_sets")
       grouped_susie_lbf = run_susie.out.lbf_variable_batch.groupTuple( size: params.n_batches)
-      concatenate_pqs_wo_sorting(grouped_susie_lbf, "lbf_variable")
-      sort_pq_file(concatenate_pqs_wo_sorting.out)
+      //concatenate_pqs_wo_sorting(grouped_susie_lbf, "lbf_variable")
+      //sort_pq_file(concatenate_pqs_wo_sorting.out)
     }
 }
 
