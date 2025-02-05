@@ -14,6 +14,8 @@ argparser.add_argument('-m', help='The median_tpm file', required=False, default
 argparser.add_argument('-o', help='The output file name', required=True)
 argparser.add_argument('-a', help='Starting position', required=True,type=int)
 argparser.add_argument('-b', help='Ending position', required=True,type=int)
+argparser.add_argument('-t', help='tpm_missing', required=True,type=int)
+
 
 
 
@@ -26,15 +28,18 @@ phenotype_metadata = args.p
 median_tmp_file = args.m
 output_file = args.o
 start_pos = args.a
-end_pos = args.b  
+end_pos = args.b
+tpm_file_missing = args.t  
+
 
 
 def main():
     start = time.time()
     con = duckdb.connect()
-
-        # If median_tpm file exists, join it. Otherwise, default to NULL.
-    if median_tmp_file:
+    if tpm_file_missing:
+        median_tpm_query = ""
+        median_tpm_column = "NULL AS median_tpm" 
+    else:
         median_tpm_query = f"""
             LEFT JOIN (
                 SELECT phenotype_id, median_tpm 
@@ -42,10 +47,6 @@ def main():
             ) AS mt ON nro.molecular_trait_id = mt.phenotype_id
         """
         median_tpm_column = "mt.median_tpm"
-    else:
-        median_tpm_query = ""
-        median_tpm_column = "NULL AS median_tpm"  # Now NULL instead of -1
-
     con.execute(f"""
         COPY (
             SELECT 

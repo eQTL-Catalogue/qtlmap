@@ -58,7 +58,6 @@ def helpMessage() {
                                     This helps to reduce the size of SuSiE output for molecular traits with many correlated sub-phenotypes (e.g. Leafcutter splice-junctions).
 
     Format results:
-      --reformat_sumstats          Add rsid and median TPM columns to the nominal summary statistics files and perform additional formatting to make the files compatible with the eQTL Catalogue (default: true)
       --varid_rsid_map_file         TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP.
 
     Other options:
@@ -116,19 +115,20 @@ Channel.fromPath(params.studyFile)
     .map{row -> [ row.qtl_subset, file(row.vcf) ]}
     .set { vcf_file_ch }
 
-//Another one for the TPM file that is only needed in the end
-/*Channel.fromPath(params.studyFile)
-    .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
-    .splitCsv(header: true, sep: '\t', strip: true)
-    .map{row -> [ row.qtl_subset, file(row.tpm_file)]}
-    .set { tpm_file_ch }*/
-
 Channel.fromPath(params.studyFile)
     .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
     .splitCsv(header: true, sep: '\t', strip: true)
     .map { row -> 
         def tpm = row.containsKey('tpm_file') && row.tpm_file ? file(row.tpm_file) : null
-        [ row.qtl_subset, tpm ]
+        def is_missing = (tpm == null) ? true : false
+
+        if (is_missing) {
+            def dummy_file = file("dummy_tpm.parquet")
+            dummy_file.text = ""  // Create an empty file
+            tpm = dummy_file
+        }
+
+        [ row.qtl_subset, tpm, is_missing ]
     }
     .set { tpm_file_ch }
 
@@ -210,7 +210,7 @@ include { vcf_to_dosage } from './modules/vcf_to_dosage'
 include { run_susie; concatenate_pq_files; merge_cs_sumstats } from './modules/susie'
 include { concatenate_pq_files as concatenate_pq_files_credible_sets } from './modules/susie'
 include { concatenate_pqs_wo_sorting; sort_pq_file } from './modules/susie'
-include { generate_sumstat_batches; convert_extracted_variant_info; convert_tmp; convert_pheno_meta} from './modules/generate_sumstat_batches'
+include { generate_sumstat_batches; convert_extracted_variant_info; convert_tpm; convert_pheno_meta} from './modules/generate_sumstat_batches'
 include { extract_unique_molecular_trait_id; extract_lead_cc_signal } from './modules/extract_cc_signal'
 
 
@@ -239,28 +239,27 @@ workflow {
     //Nominal pass
     if( params.run_nominal ){
       run_nominal(batch_ch, qtlmap_input_ch)
-      if( params.reformat_sumstats ){
         extract_variant_info2(extract_samples_from_vcf.out.vcf) 
         run_nominal_output= run_nominal.out.map{qtl_group,nominal_file, chromosome,start_pos,end_pos ->[qtl_group,[nominal_file,chromosome,start_pos,end_pos]]}
         nominal_qtl_subset_grouped = run_nominal_output.groupTuple(size: params.n_batches)
         all_nominal_qtl_subset_grouped = nominal_qtl_subset_grouped.map{qtl_group,nominal_run_data ->[qtl_group,nominal_run_data.flatten()]}
         convert_extracted_variant_info(extract_variant_info2.out)
-        convert_tmp(tpm_file_ch)
+        convert_tpm(tpm_file_ch)
         convert_pheno_meta(prepare_molecular_traits.out.pheno_meta)
         all_nominal_qtl_subset_info = all_nominal_qtl_subset_grouped
           .join(convert_extracted_variant_info.out) 
           .join(convert_pheno_meta.out) 
-          .join(convert_tmp.out)
+          .join(convert_tpm.out)
         nominal_qtl_subset_info_correct_format_ch = all_nominal_qtl_subset_info
-            .flatMap { qtl_group, nominal_run_files_regions, extracted_variant_info, pheno_meta, tpm_file ->
+            .flatMap { qtl_group, nominal_run_files_regions, extracted_variant_info, pheno_meta, tpm_file, tpm_missing ->
               nominal_run_files_regions.collate(4)
-            .collect { nominal_run_file -> [qtl_group, nominal_run_file, extracted_variant_info, pheno_meta, tpm_file] }}
-            .map { qtl_group, nominal_run_file_region_list, extracted_variant_info, pheno_meta, tpm_file ->
+            .collect { nominal_run_file -> [qtl_group, nominal_run_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing] }}
+            .map { qtl_group, nominal_run_file_region_list, extracted_variant_info, pheno_meta, tpm_file, tpm_missing ->
               def nominal_file = nominal_run_file_region_list[0]
               def chr = nominal_run_file_region_list[1]
               def start = nominal_run_file_region_list[2]
               def end = nominal_run_file_region_list[3]
-              [chr, start, end, qtl_group, nominal_file, extracted_variant_info, pheno_meta, tpm_file]}        
+              [chr, start, end, qtl_group, nominal_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing]}        
         generate_sumstat_batches_input_ch = chr_rsid_map_ch.cross(nominal_qtl_subset_info_correct_format_ch).map { rsid_data, nominal_data -> 
           def chromosome = rsid_data[0]  
           def rsid_map = rsid_data[1]    
@@ -271,9 +270,9 @@ workflow {
           def extracted_variant_info = nominal_data[5]  
           def pheno_meta = nominal_data[6]  
           def tpm_file = nominal_data[7]
-          [qtl_group, rsid_map, chromosome, start, end, nominal_file, extracted_variant_info, pheno_meta, tpm_file]}
+          def tpm_missing = nominal_data[8]
+          [qtl_group, rsid_map, chromosome, start, end, nominal_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing]}
         generate_sumstat_batches(generate_sumstat_batches_input_ch)
-      }
     }
     //Run SuSiE
     if( params.run_permutation & params.run_susie ){
@@ -304,8 +303,8 @@ workflow {
       grouped_merge_cs_sumstats = merge_cs_sumstats.out.groupTuple(size: params.n_batches)
       concatenate_pq_files_credible_sets(grouped_merge_cs_sumstats, "credible_sets")
       grouped_susie_lbf = run_susie.out.lbf_variable_batch.groupTuple( size: params.n_batches)
-      //concatenate_pqs_wo_sorting(grouped_susie_lbf, "lbf_variable")
-      //sort_pq_file(concatenate_pqs_wo_sorting.out)
+      concatenate_pqs_wo_sorting(grouped_susie_lbf, "lbf_variable")
+      sort_pq_file(concatenate_pqs_wo_sorting.out)
     }
 }
 

@@ -4,14 +4,14 @@ process generate_sumstat_batches {
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
-    tuple val(qtl_subset), path(rsid_map), val(chr),val(start_pos),val(end_pos), path(summ_stats_batch),path(var_info), path(phenotype_metadata), path(median_tpm)
+    tuple val(qtl_subset), path(rsid_map), val(chr),val(start_pos),val(end_pos), path(summ_stats_batch),path(var_info), path(phenotype_metadata), path(median_tpm), val(tpm_missing)
 
     output:
     tuple val(qtl_subset), path("${qtl_subset}_chr_${region}.parquet"), val(chr), val(start_pos), val(end_pos)
 
     script:
-    median_tpm_arg = median_tpm ? "-m $median_tpm" : ""
     region = chr + "_" + start_pos + "_" + end_pos
+    missing_tpm_arg = tpm_missing ? "-t 1" : "-t 0"
 
     """
     $baseDir/bin/generate_sumstats.py \
@@ -22,8 +22,8 @@ process generate_sumstat_batches {
         -o ${qtl_subset}_chr_${region}.parquet \
         -a $start_pos \
         -b $end_pos \
-        $median_tpm_arg
-        
+        -m $median_tpm \
+        $missing_tpm_arg
     """
 }
 
@@ -47,26 +47,30 @@ process convert_extracted_variant_info {
     """
 }
 
-process convert_tmp {
+process convert_tpm {
     tag "${qtl_subset}"
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
-    tuple val(qtl_subset), path(tmp_file)
+    tuple val(qtl_subset), path(tpm_file), val(tpm_missing)
 
     output:
-    tuple val(qtl_subset), path("${qtl_subset}_${tmp_file.simpleName}.parquet")
+    tuple val(qtl_subset), path("${qtl_subset}_${tpm_file.simpleName}.parquet"), val(tpm_missing)
 
     script:
-    median_tpm_arg = tmp_file ? "-i $tmp_file" : ""
 
-    """
-     $baseDir/bin/convert_txt_to_pq.py \
-        -o ${qtl_subset}_${tmp_file.simpleName}.parquet \
-        -t 1 \
-        -c phenotype_id,median_tpm \
-        $median_tpm_arg
-    """
+    if (!tpm_missing) {
+        """
+        $baseDir/bin/convert_txt_to_pq.py \
+            -o ${qtl_subset}_${tpm_file.simpleName}.parquet \
+            -c phenotype_id,median_tpm \
+            -i ${tpm_file}
+        """
+    } else {
+        """
+        touch ${qtl_subset}_${tpm_file.simpleName}.parquet  # Create an dummy parquet file
+        """
+    }
 }
 
 process convert_pheno_meta {
