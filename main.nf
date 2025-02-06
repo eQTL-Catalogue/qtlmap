@@ -283,6 +283,8 @@ workflow {
         .join(make_pca_covariates.out)
         .join(vcf_to_dosage.out)
       run_susie(susie_ch, batch_ch)
+    }
+    if( params.run_permutation & params.run_susie & params.run_nominal ){
       grouped_susie_cs = run_susie.out.in_cs_variant_batch.groupTuple( size: params.n_batches)
       concatenate_pq_files(grouped_susie_cs, "merged_susie")
       extract_unique_molecular_trait_id(concatenate_pq_files.out)
