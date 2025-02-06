@@ -3,8 +3,7 @@
 import duckdb
 import argparse
 
-def sort_parquet_files(input_file, memory_limit,name_prefix):
-    sorted_output_file = name_prefix + '_merged.parquet'
+def sort_parquet_files(input_file, memory_limit,sorted_output_file):
     memory_limit = str(memory_limit*0.8)
     duckdb.sql(f"""
         SET memory_limit='{memory_limit}GB';
@@ -19,8 +18,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Concatenate multiple parquet files using DuckDB.")
     parser.add_argument('-i', '--input_file', required=True, help="Input parquet file.")
     parser.add_argument('-m', '--memory_limit', required=True, type=int, help="Memory limit in GB for DuckDB.")
-    parser.add_argument('-n', '--name_prefix', required=True, help="Output parquet file prefix.")
+    parser.add_argument('-n', '--output_file_name', required=True, help="Output parquet file name.")
 
 
     args = parser.parse_args()
-    sort_parquet_files(args.input_file,args.memory_limit,args.name_prefix)
+    sort_parquet_files(args.input_file,args.memory_limit,args.output_file_name)

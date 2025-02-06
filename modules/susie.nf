@@ -40,7 +40,7 @@ process concatenate_pqs_wo_sorting {
     val(output_postfix)
 
     output:
-    tuple val(qtl_subset), path("${qtl_subset}_${output_postfix}.parquet")
+    tuple val(qtl_subset), val(output_postfix), path("${qtl_subset}_${output_postfix}.parquet")
 
     script:
     """
@@ -51,24 +51,26 @@ process concatenate_pqs_wo_sorting {
 process sort_pq_file {
     tag "${qtl_subset}"
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
-    publishDir "${params.outdir}/susie/", mode: 'copy', pattern: "*merged.parquet"
+    publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "${qtl_subset}.${output_postfix}.parquet"
 
     input:
-    tuple val(qtl_subset), path(pq_file)
+    tuple val(qtl_subset),val(output_postfix), path(pq_file)
 
     output:
-    tuple val(qtl_subset), path("*merged.parquet")
+    tuple val(qtl_subset), path("${qtl_subset}.${output_postfix}.parquet")
 
     script:
     """
-    sort_concatenated_pq.py -i ${pq_file} -m ${task.memory.toMega() / 1024} -n ${pq_file.simpleName}
+    sort_concatenated_pq.py -i ${pq_file} -m ${task.memory.toMega() / 1024} -n ${qtl_subset}.${output_postfix}.parquet
     """
 }
 
 process concatenate_pq_files {
     tag "${qtl_subset}"
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
-    publishDir "${params.outdir}/susie/", mode: 'copy', pattern: "*credible_sets.parquet"
+    publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "*credible_sets.parquet"
+    publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*cc.parquet"
+
 
 
     input:
@@ -76,11 +78,11 @@ process concatenate_pq_files {
     val(output_postfix)
 
     output:
-    tuple val(qtl_subset), path("${qtl_subset}_${output_postfix}.parquet")
+    tuple val(qtl_subset), path("${qtl_subset}.${output_postfix}.parquet")
 
     script:
     """
-    concatenate_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}_${output_postfix}.parquet
+    concatenate_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}.${output_postfix}.parquet
     """
 }
 

@@ -19,7 +19,7 @@ process extract_unique_molecular_trait_id {
 process extract_lead_cc_signal {
     tag "${qtl_subset}"
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
-    publishDir "${params.outdir}/lead_cc_signal/${qtl_subset}", mode: 'copy', pattern: "${qtl_subset}_chr${region}_cc.parquet"
+    //publishDir "${params.outdir}/lead_cc_signal/${qtl_subset}", mode: 'copy', pattern: "${qtl_subset}_chr${region}_cc.parquet"
 
 
     input:
