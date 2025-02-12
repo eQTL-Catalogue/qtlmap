@@ -3,9 +3,11 @@
 import duckdb
 import argparse
 
-def join_files(merged_susie_file, sumstat_batch_file, chrom, start_pos, end_pos, output_file):
+def join_files(merged_susie_file, sumstat_batch_file, chrom, start_pos, end_pos, output_file,memory_limit):
     con = duckdb.connect()
+    memory_limit = f"{float(memory_limit) * 0.8:.1f}"
     query = f"""
+        SET memory_limit='{memory_limit}GB';
         COPY (
             SELECT a.molecular_trait_id,
               a.chromosome,
@@ -51,7 +53,9 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--start_pos', required=True, type=int, help="Start position range of the nominal file.")
     parser.add_argument('-e', '--end_pos', required=True, type=int, help="End position range of the nominal file.")
     parser.add_argument('-o', '--output_file', required=True, help="Path to the output parquet file.")
+    parser.add_argument('-m', '--memory_limit', required=True, help="Memory limit in GB for DuckDB.")
+
     
     args = parser.parse_args()
     
-    join_files(args.merged_susie_file, args.sumstat_btach_file, args.chrom, args.start_pos, args.end_pos, args.output_file)
+    join_files(args.merged_susie_file, args.sumstat_btach_file, args.chrom, args.start_pos, args.end_pos, args.output_file,args.memory_limit)

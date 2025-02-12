@@ -82,7 +82,7 @@ process concatenate_pq_files {
 
     script:
     """
-    concatenate_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}.${output_postfix}.parquet
+    concatenate_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}.${output_postfix}.parquet -m ${task.memory.toMega() / 1024}
     """
 }
 
@@ -104,6 +104,7 @@ process merge_cs_sumstats{
         --chrom ${chrom} \
         --start_pos ${start_pos} \
         --end_pos ${end_pos} \
+        --memory_limit ${task.memory.toMega() / 1024} \
         --output_file merged_cs_sumstat_${qtl_subset}_${chrom}_${start_pos}_${end_pos}.parquet
     """
 }

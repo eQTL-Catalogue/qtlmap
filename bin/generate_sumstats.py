@@ -15,6 +15,7 @@ argparser.add_argument('-o', help='The output file name', required=True)
 argparser.add_argument('-a', help='Starting position', required=True,type=int)
 argparser.add_argument('-b', help='Ending position', required=True,type=int)
 argparser.add_argument('-t', help='tpm_missing', required=True,type=int)
+argparser.add_argument('-e',required=True, type=str, help="Memory limit in GB for DuckDB.")
 
 
 
@@ -29,11 +30,14 @@ median_tmp_file = args.m
 output_file = args.o
 start_pos = args.a
 end_pos = args.b
-tpm_file_missing = args.t  
+tpm_file_missing = args.t
+memory_limit = args.e
 
 
 
-def main():
+
+def main(memory_limit):
+    memory_limit = f"{float(memory_limit) * 0.8:.1f}"
     start = time.time()
     con = duckdb.connect()
     if tpm_file_missing:
@@ -48,6 +52,7 @@ def main():
         """
         median_tpm_column = "mt.median_tpm"
     con.execute(f"""
+        SET memory_limit='{memory_limit}GB';
         COPY (
             SELECT 
                 nro.molecular_trait_id, 
@@ -107,4 +112,4 @@ def main():
     print("Elapsed time:", end - start)
 
 if __name__ == '__main__':
-    main()
+    main(memory_limit)

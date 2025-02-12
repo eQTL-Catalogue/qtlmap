@@ -4,7 +4,7 @@ import duckdb
 import argparse
 
 def sort_parquet_files(input_file, memory_limit,sorted_output_file):
-    memory_limit = str(memory_limit*0.8)
+    memory_limit = f"{float(memory_limit) * 0.8:.1f}"
     duckdb.sql(f"""
         SET memory_limit='{memory_limit}GB';
         COPY (
@@ -17,7 +17,7 @@ def sort_parquet_files(input_file, memory_limit,sorted_output_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Concatenate multiple parquet files using DuckDB.")
     parser.add_argument('-i', '--input_file', required=True, help="Input parquet file.")
-    parser.add_argument('-m', '--memory_limit', required=True, type=int, help="Memory limit in GB for DuckDB.")
+    parser.add_argument('-m', '--memory_limit', required=True, help="Memory limit in GB for DuckDB.")
     parser.add_argument('-n', '--output_file_name', required=True, help="Output parquet file name.")
 
 

@@ -11,7 +11,7 @@ process extract_unique_molecular_trait_id {
 
     script:
     """
-    extract_unique_molecular_trait_ids.py -f $concatenated_susie_output -o ${qtl_subset}_extracted_unique_molecular_trait_ids.parquet
+    extract_unique_molecular_trait_ids.py -f $concatenated_susie_output -o ${qtl_subset}_extracted_unique_molecular_trait_ids.parquet -m ${task.memory.toMega() / 1024}
 
     """
 }
@@ -32,7 +32,7 @@ process extract_lead_cc_signal {
     region = chr + "_" + start_pos + "_" + end_pos
 
     """
-    extract_lead_cc_signal.py -s $qtl_ss -u $unique_molecular_trait_ids -o ${qtl_subset}_chr${region}_cc.parquet
+    extract_lead_cc_signal.py -s $qtl_ss -u $unique_molecular_trait_ids -o ${qtl_subset}_chr${region}_cc.parquet -m ${task.memory.toMega() / 1024}
 
     """
 } 

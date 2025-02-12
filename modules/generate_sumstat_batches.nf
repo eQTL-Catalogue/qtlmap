@@ -22,6 +22,7 @@ process generate_sumstat_batches {
         -o ${qtl_subset}_chr_${region}.parquet \
         -a $start_pos \
         -b $end_pos \
+        -e ${task.memory.toMega() / 1024} \
         -m $median_tpm \
         $missing_tpm_arg
     """
@@ -41,6 +42,7 @@ process convert_extracted_variant_info {
     """
     $baseDir/bin/convert_txt_to_pq.py \
         -i $variant_info \
+        -m ${task.memory.toMega() / 1024} \
         -c chromosome,position,variant,ref,alt,type,ac,an,r2 \
         -s '{"chromosome":"VARCHAR","position":"INTEGER","variant":"VARCHAR","ref":"VARCHAR","alt":"VARCHAR","type":"VARCHAR","ac":"INTEGER","an":"INTEGER","maf":"DOUBLE","r2":"VARCHAR"}' \
         -o ${qtl_subset}_${variant_info.simpleName}.parquet
@@ -63,6 +65,7 @@ process convert_tpm {
         """
         $baseDir/bin/convert_txt_to_pq.py \
             -o ${qtl_subset}_${tpm_file.simpleName}.parquet \
+            -m ${task.memory.toMega() / 1024} \
             -c phenotype_id,median_tpm \
             -i ${tpm_file}
         """
@@ -87,6 +90,7 @@ process convert_pheno_meta {
     """
     $baseDir/bin/convert_txt_to_pq.py \
         -i $phenotype_metadata \
+        -m ${task.memory.toMega() / 1024} \
         -c phenotype_id,group_id,gene_id \
         -o ${qtl_subset}_${phenotype_metadata.simpleName}.parquet
     """
