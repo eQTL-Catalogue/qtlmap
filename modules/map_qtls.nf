@@ -53,6 +53,7 @@ process convert_merged_permutation_txt_to_pq {
     """
     $baseDir/bin/convert_txt_to_pq.py \
         -i $input_file \
+        -m ${task.memory.toMega() / 1024} \
         -c molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta \
         -o ${qtl_subset}.permuted.parquet
     """
