@@ -23,19 +23,39 @@ process run_permutation {
  */
 process merge_permutation_batches {
     tag "${qtl_subset}"
-    publishDir "${params.outdir}/sumstats", mode: 'copy'
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(batch_file_names)
 
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.permuted.tsv.gz")
+    tuple val(qtl_subset), file("${qtl_subset}_permuted.tsv.gz")
 
     script:
     """
     cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
-    cut -f 1,6,7,8,10,11,12,18,20,21,22 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}.permuted.tsv.gz
+    cut -f 1,6,7,8,10,11,12,18,20,21,22 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}_permuted.tsv.gz
+    """
+}
+
+process convert_merged_permutation_txt_to_pq {
+    tag "${qtl_subset}"
+    publishDir "${params.outdir}/sumstats/${qtl_subset}", mode: 'copy'
+    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+
+    input:
+    tuple val(qtl_subset), path(input_file)
+
+    output:
+    tuple val(qtl_subset), path("${qtl_subset}.permuted.parquet")
+
+    script:
+    """
+    $baseDir/bin/convert_txt_to_pq.py \
+        -i $input_file \
+        -m ${task.memory.toMega() / 1024} \
+        -c molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta \
+        -o ${qtl_subset}.permuted.parquet
     """
 }
 
@@ -51,7 +71,7 @@ process run_nominal {
     tuple val(qtl_subset), file(bed), file(bed_index), file(fastqtl_bed), file(fastqtl_bed_index), file(vcf), file(vcf_index), file(covariate)
 
     output:
-    tuple val(qtl_subset), file("${qtl_subset}.nominal.batch.${batch_index}.${params.n_batches}.txt")
+    tuple val(qtl_subset), file("${qtl_subset}.nominal.batch.${batch_index}.${params.n_batches}.txt"), env(chrom), env(start_pos), env(end_pos)
 
     script:
     """
@@ -60,51 +80,27 @@ process run_nominal {
         --out ${qtl_subset}.nominal.batch.${batch_index}.${params.n_batches}.txt \\
         --window ${params.cis_window} \\
         --ma-sample-threshold 1
-    """
-}
 
-/*
- * STEP 9 - Merge nominal batches from QTLtools
- */
-process merge_nominal_batches {
-    tag "${qtl_subset}"
-    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    retries=5
+    while [[ ! -s .command.out && \$retries -gt 0 ]]; do
+        echo "Waiting for .command.out to be available..."
+        sleep 2
+        ((\$retries--))
+    done
 
-    input:
-    tuple val(qtl_subset), file(batch_file_names)  
+    if [[ ! -s .command.out ]]; then
+        echo "Error: .command.out file not found or empty. Exiting."
+        exit 1
+    fi
 
-    output:
-    tuple val(qtl_subset), file("${qtl_subset}.nominal.tab.txt.gz")
+    analyzed_region=\$(grep -A1 "Reading genotype data" .command.out | grep "region =" | head -n 1 | awk -F'=' '{print \$2}' | sed 's/[:\\-]/_/g')
 
-    script:
-    """
-    cat ${batch_file_names.join(' ')} | \\
-        csvtk space2tab -T | \\
-        csvtk sep -H -t -f 2 -s "_" | \\
-        csvtk replace -t -H -f 10 -p ^chr | \\
-        csvtk cut -t -f1,10,11,12,13,2,4,5,6,7,8,9 | \\
-        bgzip > ${qtl_subset}.nominal.tab.txt.gz
-    """
-}
+    if [[ -z "\$analyzed_region" ]]; then
+        echo "Error: analyzed_region is empty. Exiting."
+        exit 1
+    fi
 
-/*
- * STEP 11 - Sort fastQTL nominal pass outout and add header
- */
-process sort_qtltools_output {
-    tag "${qtl_subset}"
-    publishDir path: { !params.reformat_sumstats ? "${params.outdir}/sumstats" : params.outdir },
-            saveAs: { !params.reformat_sumstats ? it : null }, mode: 'copy'
-    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
-
-    input:
-    tuple val(qtl_subset), file(nominal_merged)
-
-    output:
-    tuple val(qtl_subset), file("${qtl_subset}.nominal.sorted.norsid.tsv.gz")
-
-    script:
-    """
-    gzip -dc $nominal_merged | LANG=C sort -k2,2 -k3,3n -S${params.sumstat_sort_mem} --parallel=${params.sumstat_sort_cores} | uniq | \\
-        bgzip > ${qtl_subset}.nominal.sorted.norsid.tsv.gz
+    # Extract the genotype data region from the .command.out file
+    read chrom start_pos end_pos <<< \$(echo "\$analyzed_region" | awk -F'_' '{print \$1, \$2, \$3}')
     """
 }

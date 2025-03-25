@@ -1,0 +1,2 @@
+qtl_subset	count_matrix	pheno_meta	sample_meta	vcf	tpm_file
+GEUVADIS_test_ge_with_SV	testdata/GEUVADIS_cqn.tsv	testdata/GEUVADIS_phenotype_metadata.tsv	testdata/GEUVADIS_sample_metadata.tsv	testdata/GEUVADIS_genotypes_SV.vcf.gz	testdata/GEUVADIS_median_tpm.tsv.gz

@@ -6,6 +6,7 @@ suppressPackageStartupMessages(library("Rsamtools"))
 suppressPackageStartupMessages(library("readr"))
 suppressPackageStartupMessages(library("tidyr"))
 suppressPackageStartupMessages(library("dplyr"))
+suppressPackageStartupMessages(library("arrow"))
 
 option_list <- list(
   #TODO look around if there is a package recognizing delimiter in dataset
@@ -149,7 +150,7 @@ finemapPhenotype <- function(phenotype_id, se, genotype_file, covariates, cis_di
                           scaled_prior_variance = 0.1,
                           verbose = TRUE,
                           compute_univariate_zscore = TRUE,
-                          min_abs_corr = 0)
+                          min_abs_corr = 0.5)
   fitted$variant_id = rownames(gt_matrix)
   return(fitted)
 }
@@ -201,20 +202,27 @@ extractResults <- function(susie_object){
   #Extract betas and standard errors and lbf_variables
   mean_vec = susieR::susie_get_posterior_mean(susie_object)
   sd_vec = susieR::susie_get_posterior_sd(susie_object)
+  
+  #Extract matrices
   alpha_mat = t(susie_object$alpha)
   colnames(alpha_mat) = paste0("alpha", seq(ncol(alpha_mat)))
-  mean_mat = t(susie_object$alpha * susie_object$mu) / susie_object$X_column_scale_factors
-  colnames(mean_mat) = paste0("mean", seq(ncol(mean_mat)))
-  sd_mat = sqrt(t(susie_object$alpha * susie_object$mu2 - (susie_object$alpha * susie_object$mu)^2)) / (susie_object$X_column_scale_factors)
-  colnames(sd_mat) = paste0("sd", seq(ncol(sd_mat)))
+  
+  mu_mat = t(susie_object$mu)
+  colnames(mu_mat) = paste0("mu_", seq(ncol(mu_mat)))
+  
+  mu2_mat = t(susie_object$mu2)
+  colnames(mu2_mat) = paste0("mu2_", seq(ncol(mu2_mat)))
+  
   lbf_variable_mat = t(susie_object$lbf_variable)
   colnames(lbf_variable_mat) = paste0("lbf_variable", seq(ncol(lbf_variable_mat)))
+  
   posterior_df = dplyr::tibble(variant_id = rownames(alpha_mat), 
-                               pip = susie_object$pip,
-                               z = susie_object$z,
+                               #pip = susie_object$pip,
+                               z = susie_object$z[,1],
                                posterior_mean = mean_vec, 
-                               posterior_sd = sd_vec) %>%
-                 dplyr::bind_cols(purrr::map(list(alpha_mat, mean_mat, sd_mat), dplyr::as_tibble))
+                               posterior_sd = sd_vec,
+                               X_column_scale_factors = susie_object$X_column_scale_factors) %>%
+                 dplyr::bind_cols(purrr::map(list(alpha_mat, mu_mat, mu2_mat), dplyr::as_tibble))
   lbf_df = dplyr::tibble(variant_id = rownames(lbf_variable_mat)) %>%
     dplyr::bind_cols(dplyr::as_tibble(lbf_variable_mat))
 
@@ -229,6 +237,19 @@ extractResults <- function(susie_object){
   }
 
   return(list(cs_df = cs_df, variant_df = variant_df, lbf_df = lbf_df))
+}
+
+extractPipsFromVariantDf <- function(variant_df){
+  alpha_df = dplyr::select(variant_df, phenotype_id, variant_id, cs_id, cs_index, alpha1:alpha10)
+  #Rename alpha1:alpha10 to L1:L10
+  colnames(alpha_df) = c("phenotype_id", "variant_id", "cs_id","cs_index", "L1","L2","L3","L4", "L5", "L6", "L7", "L8", "L9", "L10")
+  
+  pip_df = dplyr::filter(alpha_df, !is.na(cs_index)) %>% 
+    tidyr::pivot_longer(L1:L10, values_to = "pip") %>% 
+    dplyr::filter(cs_index == name) %>% 
+    dplyr::select(-name)
+  
+  return(pip_df)
 }
 
 make_connected_components_from_cs <- function(susie_all_df, z_threshold = 3, cs_size_threshold = 10) {
@@ -255,7 +276,7 @@ make_connected_components_from_cs <- function(susie_all_df, z_threshold = 3, cs_
     )
     
     # find overlaps and remove the duplicated
-    olaps <-  GenomicRanges::findOverlaps(cs_ranges, cs_ranges, ignore.strand = TRUE) %>%
+    olaps <- GenomicRanges::findOverlaps(cs_ranges, cs_ranges, ignore.strand = TRUE) %>%
       GenomicRanges::as.data.frame() %>%
       dplyr::filter(queryHits <= subjectHits)
     
@@ -323,8 +344,8 @@ se = eQTLUtils::makeSummarizedExperimentFromCountMatrix(assay = expression_matri
 empty_variant_df = dplyr::tibble(
   molecular_trait_id = character(),
   variant = character(),
-  chromosome = numeric(),
-  position = numeric(),
+  chromosome = character(),
+  position = integer(),
   ref = character(),
   alt = character(),
   cs_id = character(),
@@ -335,6 +356,7 @@ empty_variant_df = dplyr::tibble(
   z = numeric(),
   posterior_mean = numeric(),
   posterior_sd = numeric(),
+  X_column_scale_factors = numeric(),
   alpha1 = numeric(),
   alpha2 = numeric(),
   alpha3 = numeric(),
@@ -345,34 +367,34 @@ empty_variant_df = dplyr::tibble(
   alpha8 = numeric(),
   alpha9 = numeric(),
   alpha10 = numeric(),
-  mean1 = numeric(),
-  mean2 = numeric(),
-  mean3 = numeric(),
-  mean4 = numeric(),
-  mean5 = numeric(),
-  mean6 = numeric(),
-  mean7 = numeric(),
-  mean8 = numeric(),
-  mean9 = numeric(),
-  mean10 = numeric(),
-  sd1 = numeric(),
-  sd2 = numeric(),
-  sd3 = numeric(),
-  sd4 = numeric(),
-  sd5 = numeric(),
-  sd6 = numeric(),
-  sd7 = numeric(),
-  sd8 = numeric(),
-  sd9 = numeric(),
-  sd10 = numeric()
+  mu_1 = numeric(),
+  mu_2 = numeric(),
+  mu_3 = numeric(),
+  mu_4 = numeric(),
+  mu_5 = numeric(),
+  mu_6 = numeric(),
+  mu_7 = numeric(),
+  mu_8 = numeric(),
+  mu_9 = numeric(),
+  mu_10 = numeric(),
+  mu2_1 = numeric(),
+  mu2_2 = numeric(),
+  mu2_3 = numeric(),
+  mu2_4 = numeric(),
+  mu2_5 = numeric(),
+  mu2_6 = numeric(),
+  mu2_7 = numeric(),
+  mu2_8 = numeric(),
+  mu2_9 = numeric(),
+  mu2_10 = numeric()
 )
 
 empty_lbf_df = dplyr::tibble(
   molecular_trait_id = character(),
   region = character(),
   variant = character(),
-  chromosome = numeric(),
-  position = numeric(),
+  chromosome = character(),
+  position = integer(),
   lbf_variable1 = numeric(),
   lbf_variable2 = numeric(),
   lbf_variable3 = numeric(),
@@ -400,18 +422,18 @@ empty_cs_df = dplyr::tibble(
 empty_in_cs_variant_df = dplyr::tibble(
   molecular_trait_id = character(),
   variant = character(),
-  chromosome = numeric(),
-  position = numeric(),
-  ref = numeric(),
-  alt = numeric(),
-  cs_id = numeric(),
-  cs_index = numeric(),
+  chromosome = character(),
+  position = integer(),
+  ref = character(),
+  alt = character(),
+  cs_id = character(),
+  cs_index = character(),
   region = character(),
   pip = numeric(),
   z = numeric(),
   cs_min_r2 = numeric(),
   cs_avg_r2 = numeric(),
-  cs_size = numeric(),
+  cs_size = integer(),
   posterior_mean = numeric(),
   posterior_sd = numeric(),
   cs_log10bf = numeric()
@@ -439,7 +461,7 @@ selected_phenotypes = phenotype_list %>%
 message("Number of overall unique group_ids: ", length(unique(phenotype_list$group_id)))
 message("Number of groups in the batch: ", length(selected_group_ids))
 message("Number of phenotypes in the batch: ", length(selected_phenotypes))
-if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
+if(all(!is.na(selected_phenotypes)) && length(selected_phenotypes) > 0){
   #Check that the qtl_group is valid and subset
   assertthat::assert_that(opt$qtl_group %in% unique(se$qtl_group))
   selected_qtl_group = eQTLUtils::subsetSEByColumnValue(se, "qtl_group", opt$qtl_group)
@@ -466,6 +488,8 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
       dplyr::mutate(chr = stringr::str_remove_all(chr, "chr")) %>%
       dplyr::mutate(cs_index = cs_id) %>%
       dplyr::mutate(cs_id = paste(phenotype_id, cs_index, sep = "_"))
+    pip_df = extractPipsFromVariantDf(variant_df)
+    variant_df = dplyr::left_join(variant_df, pip_df, by = c("phenotype_id", "variant_id", "cs_id", "cs_index"))
   }
   
   #Extract lbf variable df and format correctly for export
@@ -478,17 +502,17 @@ if(!is.na(selected_phenotypes) && length(selected_phenotypes) > 0){
       dplyr::select(-ref, -alt) %>%
       dplyr::rename(molecular_trait_id = phenotype_id, variant = variant_id) %>%
       dplyr::select(molecular_trait_id, region, variant, chromosome, position, lbf_variable1:lbf_variable10)
+    lbf_df <- lbf_df %>% dplyr::mutate(position = as.integer(position))
   } else {
     lbf_df = empty_lbf_df
   }
   
   #Extract information about credible sets
   cs_df <- purrr::map_df(res$cs_df, identity, .id = "phenotype_id")
-} else { #Wrtie empty data frames
-  write.table(empty_in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+} else { #Write empty data frames
+  arrow::write_parquet(empty_in_cs_variant_df, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.parquet"))
+  arrow::write_parquet(empty_variant_df, paste0(opt$out_prefix, ".full_susie.parquet"))
   message("No selected_phenotypes found. Write empty matrices and stop")
   quit(save = "no", status = 0)
 }
@@ -512,17 +536,16 @@ if(nrow(cs_df) > 0){
 #Extract information about all variants
 if(nrow(variant_df) > 0){
   variant_df_transmute <- dplyr::transmute(variant_df, molecular_trait_id = phenotype_id, variant = variant_id, 
-          chromosome = chr, position = pos, ref, alt, cs_id, cs_index, low_purity, region, pip, z, posterior_mean, posterior_sd)  
-  variant_df <- dplyr::bind_cols(variant_df_transmute, dplyr::select(variant_df,alpha1:sd10))
+          chromosome = chr, position = pos, ref, alt, cs_id, cs_index, low_purity, region, pip, z, posterior_mean, posterior_sd, X_column_scale_factors)  
+  variant_df <- dplyr::bind_cols(variant_df_transmute, dplyr::select(variant_df,alpha1:mu2_10))
 } else{
   variant_df = empty_variant_df
 }
 
 if (nrow(variant_df) == 0 && nrow(cs_df) == 0 && nrow(in_cs_variant_df) == 0) {
-  write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  arrow::write_parquet(in_cs_variant_df, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(empty_lbf_df, paste0(opt$out_prefix, ".lbf_variable.parquet"))
+  arrow::write_parquet(empty_variant_df, paste0(opt$out_prefix, ".full_susie.parquet"))
   message("There are no credible sets. Write empty matrices and stop execution.")
   quit(save = "no", status = 0)
 } 
@@ -538,10 +561,9 @@ in_cs_variant_gene_df <- in_cs_variant_df %>%
 
 # if it is gene expression write full sumstats
 if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_id) | opt$write_full_susie) {
-  write.table(in_cs_variant_df, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(cs_df, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(variant_df, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(lbf_df, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  arrow::write_parquet(in_cs_variant_df, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(lbf_df, paste0(opt$out_prefix, ".lbf_variable.parquet"))
+  arrow::write_parquet(variant_df, paste0(opt$out_prefix, ".full_susie.parquet"))
 } else { 
   # generate connected components per gene
   message("Building connected components!")
@@ -552,10 +574,8 @@ if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_i
   cs_df_filt <- cs_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
   variant_df_filt <- variant_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
   lbf_df_filt <- lbf_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
-
-  write.table(in_cs_variant_df_filt, paste0(opt$out_prefix, ".txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(cs_df_filt, paste0(opt$out_prefix, ".cred.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(variant_df_filt, paste0(opt$out_prefix, ".snp.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
-  write.table(lbf_df_filt, paste0(opt$out_prefix, ".lbf_variable.txt"), sep = "\t", quote = FALSE, row.names = FALSE, col.names = TRUE)
+  arrow::write_parquet(in_cs_variant_df_filt, paste0(opt$out_prefix, ".parquet"))
+  arrow::write_parquet(lbf_df_filt, paste0(opt$out_prefix, ".lbf_variable.parquet"))
+  arrow::write_parquet(variant_df_filt, paste0(opt$out_prefix, ".full_susie.parquet"))
 }
 
