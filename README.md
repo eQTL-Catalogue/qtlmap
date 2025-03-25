@@ -50,3 +50,4 @@ Column names of the output files are explained [here](https://github.com/eQTL-Ca
 * Kaur Alasoo
 * Masahiro Kanai
 * Ralf Tambets
+* Krista Freimann
