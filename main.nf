@@ -132,10 +132,16 @@ Channel.fromPath(params.studyFile)
     }
     .set { tpm_file_ch }
 
-Channel.fromPath(params.rsid_map_file)
-    .ifEmpty { error "Cannot find rsid file in: ${params.rsid_map_file}" }
+Channel
+    .fromPath(params.rsid_map_file)
+    .ifEmpty { error "Cannot find rsid map file: ${params.rsid_map_file}" }
     .splitCsv(header: true, sep: '\t', strip: true)
-    .map{row -> [ row.chr, file(row.rsid_file)]}
+    .map { row ->
+        def rsid_path = params.rsid_map_testdata_paths
+            ? file("${workflow.projectDir}/${row.rsid_file}")
+            : file(row.rsid_file)
+        [ row.chr, rsid_path ]
+    }
     .set { chr_rsid_map_ch }
 
 // Batch channel
