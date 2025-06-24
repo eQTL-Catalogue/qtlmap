@@ -452,6 +452,9 @@ n_chunks = chunk_vector[2]
 selected_chunk_group = splitIntoChunks(chunk_id, n_chunks, length(unique(phenotype_list$group_id)))
 selected_group_ids = unique(phenotype_list$group_id)[selected_chunk_group]
 
+#Extract list of phenotypes used for fine mapping in this chunk
+finemapped_phenotype_list = dplyr::filter(phenotype_list, group_id %in% selected_group_ids)
+
 selected_phenotypes = phenotype_list %>%
   dplyr::filter(group_id %in% selected_group_ids) %>%
   dplyr::pull(phenotype_id) %>%
@@ -568,7 +571,13 @@ if (all(in_cs_variant_gene_df$molecular_trait_id == in_cs_variant_gene_df$gene_i
   # generate connected components per gene
   message("Building connected components!")
   susie_cc <- make_connected_components_from_cs(susie_all_df = in_cs_variant_gene_df, cs_size_threshold = 200)
-  needed_phenotype_ids <- susie_cc$molecular_trait_id %>% base::unique()
+  
+  #Recover phenotype groups that were included into fine mapping, but did not result in credible sets
+  recovered_phenotype_list = dplyr::anti_join(finemapped_phenotype_list, susie_cc, by = "group_id")
+  
+  #For the recovered phenotype groups, keep the lead phenotype_id (from permutation analysis)
+  needed_phenotype_ids <- c(susie_cc$molecular_trait_id, recovered_phenotype_list$phenotype_id) %>% 
+    base::unique()
 
   in_cs_variant_df_filt <- in_cs_variant_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
   cs_df_filt <- cs_df %>% dplyr::filter(molecular_trait_id %in% needed_phenotype_ids)
