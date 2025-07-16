@@ -34,7 +34,7 @@ process merge_permutation_batches {
     script:
     """
     cat ${batch_file_names.join(' ')} | csvtk space2tab | sort -k11n -k12n > merged.txt
-    cut -f 1,6,7,8,10,11,12,18,20,21,22 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | gzip > ${qtl_subset}_permuted.tsv.gz
+    cut -f 1,6,7,8,10,11,12,18,20,21,22 merged.txt | csvtk add-header -t -n molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta | awk -F'\t' 'NR==1 || \$2 != "NA"' | gzip > ${qtl_subset}_permuted.tsv.gz
     """
 }
 
@@ -55,6 +55,7 @@ process convert_merged_permutation_txt_to_pq {
         -i $input_file \
         -m ${task.memory.toMega() / 1024} \
         -c molecular_trait_object_id,molecular_trait_id,n_traits,n_variants,variant,chromosome,position,pvalue,beta,p_perm,p_beta \
+        -s '{"molecular_trait_object_id":"VARCHAR","molecular_trait_id":"VARCHAR","n_traits":"INTEGER","n_variants":"INTEGER","variant":"VARCHAR","chromosome":"VARCHAR","position":"INTEGER","pvalue":"DOUBLE","beta":"DOUBLE","p_perm":"DOUBLE","p_beta":"DOUBLE"}' \
         -o ${qtl_subset}.permuted.parquet
     """
 }
