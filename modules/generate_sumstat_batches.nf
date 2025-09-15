@@ -67,6 +67,7 @@ process convert_tpm {
             -o ${qtl_subset}_${tpm_file.simpleName}.parquet \
             -m ${task.memory.toMega() / 1024} \
             -c phenotype_id,median_tpm \
+            -s '{"phenotype_id":"VARCHAR","study":"VARCHAR","qtl_group":"VARCHAR","median_tpm":"DOUBLE"}' \
             -i ${tpm_file}
         """
     } else {
