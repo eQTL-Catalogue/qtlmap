@@ -11,10 +11,17 @@ process extract_samples_from_vcf {
     tuple val(qtl_subset), file("${sample_names.simpleName}.vcf.gz.tbi"), emit: index
 
     script:
-    """
-    bcftools view -S $sample_names $genotype_vcf -Oz -o ${sample_names.simpleName}_extract.vcf.gz
-    bcftools +fill-tags ${sample_names.simpleName}_extract.vcf.gz -Oz -o ${sample_names.simpleName}_extract_filltags.vcf.gz
-    bcftools view -i 'AN[0]*MAF[0]>5 & MAF[0]>0.01' ${sample_names.simpleName}_extract_filltags.vcf.gz -Oz -o ${sample_names.simpleName}.vcf.gz
-    tabix -p vcf ${sample_names.simpleName}.vcf.gz
-    """
+    if (params.vcf_extract_samples){
+        """
+        bcftools view -S $sample_names $genotype_vcf -Oz -o ${sample_names.simpleName}_extract.vcf.gz
+        bcftools +fill-tags ${sample_names.simpleName}_extract.vcf.gz -Oz -o ${sample_names.simpleName}_extract_filltags.vcf.gz
+        bcftools view -i 'AN[0]*MAF[0]>5 & MAF[0]>0.01' ${sample_names.simpleName}_extract_filltags.vcf.gz -Oz -o ${sample_names.simpleName}.vcf.gz
+        tabix -p vcf ${sample_names.simpleName}.vcf.gz
+        """
+    } else {
+        """
+        cp $genotype_vcf ${sample_names.simpleName}.vcf.gz
+        tabix -p vcf ${sample_names.simpleName}.vcf.gz
+        """
+    }
 }
