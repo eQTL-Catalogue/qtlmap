@@ -224,11 +224,17 @@ include { extract_unique_molecular_trait_id; extract_lead_cc_signal } from './mo
 workflow {
 
     // Prepare input data for QTL mapping
-    vcf_set_variant_ids(vcf_file_ch)
-    extract_variant_info(vcf_set_variant_ids.out)
+    if( params.vcf_set_variant_ids ){
+      vcf_set_variant_ids(vcf_file_ch)
+      vcf_input_ch = vcf_set_variant_ids.out
+    }
+    else {
+      vcf_input_ch = vcf_file_ch
+    }
+    extract_variant_info(vcf_input_ch)
     prepare_molecular_traits(study_file_ch.join(extract_variant_info.out))
     compress_bed(prepare_molecular_traits.out.bed_file)
-    extract_samples_from_vcf(vcf_set_variant_ids.out.join(prepare_molecular_traits.out.sample_names))
+    extract_samples_from_vcf(vcf_input_ch.join(prepare_molecular_traits.out.sample_names))
     make_pca_covariates(prepare_molecular_traits.out.pheno_cov.join(extract_samples_from_vcf.out.vcf))
 
     //Run nominal and permutation passes
