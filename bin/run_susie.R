@@ -320,7 +320,7 @@ covariates_matrix = covariates_matrix[,exclude_cov]
 
 #Import list of phenotypes for finemapping
 phenotype_table = importQtlmapPermutedPvalues(opt$phenotype_list)
-filtered_list = dplyr::filter(phenotype_table, p_fdr < 0.01)
+filtered_list = dplyr::filter(phenotype_table, p_fdr < 0.01, n_variants >= 5)
 phenotype_list = dplyr::semi_join(phenotype_meta, filtered_list, by = "group_id")
 message("Number of phenotypes included for analysis: ", nrow(phenotype_list))
 
