@@ -30,7 +30,7 @@ def helpMessage() {
      -profile tartu_hpc\
      --studyFile testdata/multi_test.tsv\
      --vcf_has_R2_field FALSE\
-     --varid_rsid_map_file testdata/varid_rsid_map.tsv.gz\
+     --rsid_map_file testdata/rsid_map_file.tsv\
      --n_batches 25
 
     Mandatory arguments:
@@ -48,7 +48,8 @@ def helpMessage() {
       --n_geno_pcs                  Number of genotype matrix principal components included as covariates in QTL analysis (default: 6).
       --n_pheno_pcs                 Number of phenotype matrix principal components included as covariates in QTL analysis (default: 6).
       --mincisvariant               Minimal numner of variants needed to be found in cis_window of each phenotype (default: 5)
-      --covariates                  Comma-separated list of additional covariates included in the analysis (e.g. sex, age, batch). Columns with the exact same names should exist in the sample metadata file. 
+      --covariates                  Comma-separated list of additional covariates included in the analysis (e.g. sex, age, batch). Columns with the exact same names should exist in the sample metadata file.
+      --rsid_map_file               TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP. Contains parquet files mapped to chromosomes, each parquet file has  columns :variant, rsid, chr, position. Example testdata file is testdata/rsid_map_file.tsv.
 
     Fine mapping (SuSiE)
       --run_susie                   Perform eQTL fine mapping with SuSiE
@@ -57,8 +58,6 @@ def helpMessage() {
                                     Setting this to 'false' will apply credible set connected component based filtering to SuSiE results. 
                                     This helps to reduce the size of SuSiE output for molecular traits with many correlated sub-phenotypes (e.g. Leafcutter splice-junctions).
 
-    Format results:
-      --varid_rsid_map_file         TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP.
 
     Other options:
       --outdir                      The output directory where the results will be saved
@@ -185,6 +184,7 @@ summary['Additonal covariates'] = params.covariates
 summary["Run SuSiE"]            = params.run_susie
 summary["Write full SuSiE"]     = params.write_full_susie
 summary["VCF genotype field"]   = params.vcf_genotype_field
+summary["RSID map file"]        = params.rsid_map_file
 summary['Max Memory']           = params.max_memory
 summary['Max CPUs']             = params.max_cpus
 summary['Max Time']             = params.max_time
