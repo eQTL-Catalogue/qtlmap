@@ -8,7 +8,7 @@ process prepare_molecular_traits {
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
-    tuple val(qtl_subset), file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf_variant_info)
+    tuple val(qtl_subset), file(expression_matrix), file(phenotype_metadata), file(sample_metadata), val(n_pheno_pcs), file(vcf_variant_info)
 
     output: 
     tuple val(qtl_subset), file("*.bed"), emit: bed_file
@@ -29,7 +29,7 @@ process prepare_molecular_traits {
         -a ${params.covariates}
     
     #Merge phenotype covariates together
-    head -n ${params.n_pheno_pcs + 1} phenoPCA.tsv > ${qtl_subset}.pheno_cov.txt
+    head -n ${n_pheno_pcs + 1} phenoPCA.tsv > ${qtl_subset}.pheno_cov.txt
     tail -n+2 additional_covariates.tsv >> ${qtl_subset}.pheno_cov.txt
     """
 }

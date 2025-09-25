@@ -101,7 +101,13 @@ if( workflow.profile == 'awsbatch') {
  * Create a channel for input files
  */ 
 
-//molecular trait data input data
+ //molecular trait data input data
+Channel.fromPath(params.studyFile)
+    .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.qtl_subset, file(row.count_matrix), file(row.pheno_meta), file(row.sample_meta), row.n_pheno_pcs.toInteger()]}
+    .set { study_file_prepare_molecular_traits_ch }
+
 Channel.fromPath(params.studyFile)
     .ifEmpty { error "Cannot find studyFile file in: ${params.studyFile}" }
     .splitCsv(header: true, sep: '\t', strip: true)
@@ -226,7 +232,7 @@ workflow {
       vcf_input_ch = vcf_file_ch
     }
     extract_variant_info(vcf_input_ch)
-    prepare_molecular_traits(study_file_ch.join(extract_variant_info.out))
+    prepare_molecular_traits(study_file_prepare_molecular_traits_ch.join(extract_variant_info.out))
     compress_bed(prepare_molecular_traits.out.bed_file)
     extract_samples_from_vcf(vcf_input_ch.join(prepare_molecular_traits.out.sample_names))
     make_pca_covariates(prepare_molecular_traits.out.pheno_cov.join(extract_samples_from_vcf.out.vcf))
