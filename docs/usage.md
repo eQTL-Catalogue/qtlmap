@@ -18,6 +18,10 @@
     * [`--is_imputed`](#--is_imputed)
     * [`--run_permutation`](#--run_permutation)
     * [`--run_susie`](#--run_susie)
+    * [`--write_full_susie`](#--write_full_susie)
+    * [`--run_merge_lbf`](#--run_merge_lbf)
+    * [`--vcf_set_variant_ids`](#--vcf_set_variant_ids)
+    * [`--vcf_extract_samples`](#--vcf_extract_samples)
 * [Using profiles](#-profile)
     * [`-profile`](#-profile-single-dash)
        * [`awsbatch`](#awsbatch)
@@ -56,11 +60,11 @@ NXF_OPTS='-Xms1g -Xmx4g'
 ## Running the pipeline
 The typical command for running the pipeline is as follows:
 ```bash
-nextflow run main.nf -profile tartu_hpc\
-   --studyFile testdata/multi_test.tsv\
-    --vcf_has_R2_field FALSE\
-    --varid_rsid_map_file testdata/varid_rsid_map.tsv.gz\
-    --n_batches 25
+    nextflow run main.nf -profile tartu_hpc\
+     --studyFile testdata/multi_test.tsv\
+     --vcf_has_R2_field FALSE\
+     --rsid_map_file testdata/rsid_map_file.tsv\
+     --n_batches 25
 ```
 
 This will launch the pipeline with the `tartu_hpc` configuration profile. See below for more information about profiles.
@@ -108,7 +112,7 @@ nextflow run main.nf --studyFile testdata/multi_test.tsv
 
 ```groovy
 params {
-    genotype_vcf = "$baseDir/testdata/multi_test.tsv"
+    studyFile = "$baseDir/testdata/multi_test.tsv"
 }
 
 ```
@@ -308,18 +312,28 @@ params {
 
 ## VCF processing options
 ### `--vcf_set_variant_ids`
-### `--vcf_extract_samples`
-
-Use these options to include or skip first two VCF processing steps
+Use these options to include or skip the first VCF processing step
 . Default values are _**true**_
 
 ```bash
-nextflow run main.nf [mandatory arguments here] --vcf_set_variant_ids false --vcf_extract_samples false
+nextflow run main.nf [mandatory arguments here] --vcf_set_variant_ids false
 ```
 
 ```groovy
 params {
     vcf_set_variant_ids = false
+}
+```
+
+### `--vcf_extract_samples`
+Use these options to include or skip the extract_samples_from_vcf VCF processing step. Default values are _**true**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --vcf_extract_samples false
+```
+
+```groovy
+params {
     vcf_extract_samples = false
 }
 ```
