@@ -15,10 +15,4 @@ module load squashfs/4.4
 
 
 
-  NXF_VER=22.04.3 nextflow run main.nf -profile tartu_hpc -resume\
-     --studyFile testdata/multi_test.tsv\
-      --vcf_has_R2_field FALSE\
-      --run_permutation TRUE\
-      --run_susie TRUE\
-      --outdir testdata_outdir\
-      --n_batches 25
+  NXF_VER=22.04.3 nextflow run main.nf -profile tartu_hpc,test -resume

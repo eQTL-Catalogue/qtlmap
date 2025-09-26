@@ -8,8 +8,20 @@
     * [`--studyFile`](#--studyFile)
     * [`--cis_window`](#--cis_window)
     * [`--mincisvariant`](#--mincisvariant)
+    * [`--n_geno_pcs`](#--n_geno_pcs)
+    * [`--n_pheno_pcs`](#--n_pheno_pcs)
+    * [`--covariates`](#--covariates)
+    * [`--rsid_map_file`](#--rsid_map_file)
+    * [`--vcf_has_R2_field`](#--vcf_has_R2_field)
+    * [`--vcf_genotype_field`](#--vcf_genotype_field)
     * [`--n_batches`](#--n_batches)
     * [`--is_imputed`](#--is_imputed)
+    * [`--run_permutation`](#--run_permutation)
+    * [`--run_susie`](#--run_susie)
+    * [`--write_full_susie`](#--write_full_susie)
+    * [`--run_merge_lbf`](#--run_merge_lbf)
+    * [`--vcf_set_variant_ids`](#--vcf_set_variant_ids)
+    * [`--vcf_extract_samples`](#--vcf_extract_samples)
 * [Using profiles](#-profile)
     * [`-profile`](#-profile-single-dash)
        * [`awsbatch`](#awsbatch)
@@ -48,11 +60,11 @@ NXF_OPTS='-Xms1g -Xmx4g'
 ## Running the pipeline
 The typical command for running the pipeline is as follows:
 ```bash
-nextflow run main.nf -profile tartu_hpc\
-   --studyFile testdata/multi_test.tsv\
-    --vcf_has_R2_field FALSE\
-    --varid_rsid_map_file testdata/varid_rsid_map.tsv.gz\
-    --n_batches 25
+    nextflow run main.nf -profile tartu_hpc\
+     --studyFile testdata/multi_test.tsv\
+     --vcf_has_R2_field FALSE\
+     --rsid_map_file testdata/rsid_map_file.tsv\
+     --n_batches 25
 ```
 
 This will launch the pipeline with the `tartu_hpc` configuration profile. See below for more information about profiles.
@@ -88,7 +100,7 @@ Use this to specify the location of the text file describing the locations of al
 1. _**pheno_meta**_ - specifies the location of your phenotype metadata file (.tsv). Should contain at least the following columns: **_phenotype_id, chromosome, phenotype_pos, strand_**. The _**phenotype_pos**_ column is used to define the _cis_ window around each phenotype. 
 1. _**sample_meta**_ - specifies the location of your sample metadata file (.tsv). Should contain at least the following columns: **_sample_id, genotype_id, qtl_group_**
 1. _**vcf**_ - Genotype file used for QTL analysis. Sample ids of the VCF file should match the genotype_id column in the _**sample_meta**_ file. 
-1. _**tpm_file**_ - specifies the median TPM value of each phenotype in each _**qtl_group**_ (from _**sample_meta**_ file). These TPM values are not used in QTL analysis and are only merged into final summary statistics file as gene annotations. If the _**tpm_file**_ is not available, then this can be replaced by a dummy placeholder value 'null.txt'.
+
 
 See the section about [input files](inputs_expl.md) for more details how the columns in different files related to each other. Example studyFile is available [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata/multi_test.tsv) and example input data can be seen [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata).
 
@@ -100,11 +112,18 @@ nextflow run main.nf --studyFile testdata/multi_test.tsv
 
 ```groovy
 params {
-    genotype_vcf = "$baseDir/testdata/multi_test.tsv"
+    studyFile = "$baseDir/testdata/multi_test.tsv"
 }
 
 ```
 ## Optional Arguments
+
+### Inside `--studyFile` file, as a column
+
+Check the difference between testdata/multi_test_no_tpm.tsv and testdata/multi_test.tsv for reference.
+
+_**tpm_file**_ - specifies the median TPM value of each phenotype in each _**qtl_group**_ (from _**sample_meta**_ file). These TPM values are not used in QTL analysis and are only merged into final summary statistics file as gene annotations. 
+
 ### `--cis_window`
 Use this to specify the cis-window length in bases. Deafult value is _**1,000,000 bases (1Mb)**_
 
@@ -128,6 +147,84 @@ nextflow run main.nf [mandatory arguments here] --mincisvariant 10
 ```groovy
 params {
     mincisvariant = 10
+}
+```
+
+### `--n_geno_pcs`
+Number of genotype matrix principal components included as covariates in QTL analysis. Default value is _**6**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --n_geno_pcs 3
+```
+
+```groovy
+params {
+    n_geno_pcs = 3
+}
+```
+
+### `--n_pheno_pcs`
+Number of phenotype matrix principal components included as covariates in QTL analysis. Default value is _**6**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --n_pheno_pcs 3
+```
+
+```groovy
+params {
+    n_pheno_pcs = 3
+}
+```
+
+### `--covariates`
+Comma-separated list of additional covariates included in the analysis (e.g. sex, age, batch). Columns with the exact same names should exist in the sample metadata file. Default value is _**"null"**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --covariates sex
+```
+
+```groovy
+params {
+    covariates = sex
+}
+```
+
+### `--rsid_map_file`
+TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP. Contains parquet files mapped to chromosomes, each parquet file has columns  [variant, rsid, chr, position].
+
+```bash
+nextflow run main.nf [mandatory arguments here] --rsid_map_file /path/to/map/file.tsv
+```
+
+```groovy
+params {
+    rsid_map_file = "/path/to/map/file.tsv"
+}
+```
+
+### `--vcf_has_R2_field`
+Does the genotype VCF file contain R2 value in the INFO field? Default value is _**TRUE**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --vcf_has_R2_field false
+```
+
+```groovy
+params {
+    vcf_has_R2_field = false
+}
+```
+
+### `--vcf_genotype_field`
+Field in the VCF file that is used to construct the dosage matrix. Valid options are GT and DS. Default value is _**GT**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --vcf_genotype_field DS
+```
+
+```groovy
+params {
+    vcf_genotype_field = DS
 }
 ```
 
@@ -156,6 +253,91 @@ params {
     is_imputed = false
 }
 ```
+
+### `--run_permutation`
+Use this option to calculate permuation p-values for each phenotype group (group_id in the phenotype metadata file).
+The default value is _**FALSE**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --run_permutation true
+```
+
+```groovy
+params {
+    run_permutation = true
+}
+```
+
+### `--run_susie`
+Use this option to perform eQTL fine mapping with SuSiE.
+The default value is _**FALSE**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --run_susie true
+```
+
+```groovy
+params {
+    run_susie = true
+}
+```
+
+### `--write_full_susie`
+If **TRUE** then full SuSiE output will not be written to disk. 
+Setting this to 'false' will apply credible set connected component based filtering to SuSiE results. This helps to reduce the size of SuSiE output for molecular traits with many correlated sub-phenotypes (e.g. Leafcutter splice-junctions).The default value is _**TRUE**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --write_full_susie false
+```
+
+```groovy
+params {
+    write_full_susie = false
+}
+```
+
+### `--run_merge_lbf`
+Use this option to merge susie output *.lbf_variable.parquet files.
+The default value is _**TRUE**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --run_merge_lbf false
+```
+
+```groovy
+params {
+    run_merge_lbf = false
+}
+```
+
+## VCF processing options
+### `--vcf_set_variant_ids`
+Use these options to include or skip the first VCF processing step
+. Default values are _**true**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --vcf_set_variant_ids false
+```
+
+```groovy
+params {
+    vcf_set_variant_ids = false
+}
+```
+
+### `--vcf_extract_samples`
+Use these options to include or skip the extract_samples_from_vcf VCF processing step. Default values are _**true**_
+
+```bash
+nextflow run main.nf [mandatory arguments here] --vcf_extract_samples false
+```
+
+```groovy
+params {
+    vcf_extract_samples = false
+}
+```
+
 
 ## Using profiles
 ### `-profile`
