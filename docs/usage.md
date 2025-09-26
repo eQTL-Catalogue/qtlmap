@@ -120,7 +120,7 @@ params {
 
 ### Inside `--studyFile` file, as a column
 
-See the example in testdata/multi_test_no_tpm.tsv file.
+Check the difference between testdata/multi_test_no_tpm.tsv and testdata/multi_test.tsv for reference.
 
 _**tpm_file**_ - specifies the median TPM value of each phenotype in each _**qtl_group**_ (from _**sample_meta**_ file). These TPM values are not used in QTL analysis and are only merged into final summary statistics file as gene annotations. 
 
