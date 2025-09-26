@@ -190,7 +190,7 @@ params {
 ```
 
 ### `--rsid_map_file`
-TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP. Contains parquet files mapped to chromosomes, each parquet file has columns  [variant, rsid, chr, position]. Example testdata file is testdata/rsid_map_file.tsv. Default value for test is _**"testdata/rsid_map_file.tsv"**_
+TSV file mapping variant ids in CHR_POS_REF_ALT format to rsids from dbSNP. Contains parquet files mapped to chromosomes, each parquet file has columns  [variant, rsid, chr, position].
 
 ```bash
 nextflow run main.nf [mandatory arguments here] --rsid_map_file /path/to/map/file.tsv
