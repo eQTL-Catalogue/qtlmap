@@ -25,7 +25,8 @@ process run_susie{
      --cisdistance ${params.cis_window}\
      --out_prefix '${qtl_subset}.${batch_index}_${params.n_batches}'\
      --eqtlutils null\
-     --write_full_susie ${params.write_full_susie}
+     --write_full_susie ${params.write_full_susie}\
+     --finemap_by_group_id ${params.finemap_by_group_id}
     """
 }
 

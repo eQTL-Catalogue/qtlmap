@@ -33,7 +33,10 @@ option_list <- list(
   optparse::make_option(c("--eqtlutils"), type="character", default=NULL,
               help="Optional path to the eQTLUtils R package location. If not specified then eQTLUtils is assumed to be installed in the container. [default \"%default\"]", metavar = "type"),
   optparse::make_option(c("--write_full_susie"), type="character", default="true",
-                        help="If 'true' then full SuSiE output will not be written to disk. Setting this to 'false' will apply credible set connected components based filtering to SuSiE results. [default \"%default\"]", metavar = "type")
+                        help="If 'true' then full SuSiE output will not be written to disk. Setting this to 'false' will apply credible set connected components based filtering to SuSiE results. [default \"%default\"]", metavar = "type"),
+  optparse::make_option(c("--finemap_by_group_id"), type="character", default="true",
+                        help="If 'true', then run SuSiE on all phenotypes with the same group_id (e.g. leafcutter junctions or exons). If set to false then finemappign will only be run on the lead phenotype_ids present in the QTLtools permuted output file. [default \"%default\"]", metavar = "type")
+  
 )
 
 opt <- optparse::parse_args(optparse::OptionParser(option_list=option_list))
@@ -51,7 +54,8 @@ if(FALSE){
              out_prefix = "./finemapping_output",
              eqtlutils = "../eQTLUtils/",
              qtl_group = "LCL",
-             write_full_susie = "true"
+             write_full_susie = "true",
+             finemap_by_group_id = "true"
   )
 }
 
@@ -65,6 +69,7 @@ if (!is.null(opt$eqtlutils)){
 
 #Set character parameters to boolean
 opt$write_full_susie = as.logical(opt$write_full_susie)
+opt$finemap_by_group_id = as.logical(opt$finemap_by_group_id)
 
 #Print all options
 print(opt)
@@ -88,7 +93,8 @@ importQtlmapPermutedPvalues <- function(perm_path){
   tbl = read.table(perm_path, check.names = F, header = T, stringsAsFactors = F) %>%
     dplyr::as_tibble() %>%
     dplyr::mutate(p_fdr = p.adjust(p_beta, method = "fdr")) %>%
-    dplyr::mutate(group_id = molecular_trait_object_id)
+    dplyr::mutate(group_id = molecular_trait_object_id) %>%
+    dplyr::mutate(phenotype_id = molecular_trait_id)
   return(tbl)
 }
 
@@ -321,7 +327,13 @@ covariates_matrix = covariates_matrix[,exclude_cov]
 #Import list of phenotypes for finemapping
 phenotype_table = importQtlmapPermutedPvalues(opt$phenotype_list)
 filtered_list = dplyr::filter(phenotype_table, p_fdr < 0.01, n_variants >= 5)
-phenotype_list = dplyr::semi_join(phenotype_meta, filtered_list, by = "group_id")
+
+#Choose between finemapping all phenotypes with the same group_id or only the lead phenotype from the QTLtools permuted output.
+if(opt$finemap_by_group_id){
+  phenotype_list = dplyr::semi_join(phenotype_meta, filtered_list, by = "group_id")
+} else {
+  phenotype_list = dplyr::semi_join(phenotype_meta, filtered_list, by = "phenotype_id")
+}
 message("Number of phenotypes included for analysis: ", nrow(phenotype_list))
 
 #Keep only those phenotypes that are present in the expression matrix
