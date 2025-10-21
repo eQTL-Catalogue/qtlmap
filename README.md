@@ -44,6 +44,68 @@ The output directory of the workflow contains the following subdirectories:
 
 Column names of the output files are explained [here](https://github.com/eQTL-Catalogue/eQTL-Catalogue-resources/blob/master/tabix/Columns.md).
 
+# Test usage
+
+1. download repository
+```shell
+git clone git@github.com:MiqG/qtlmap.git
+```
+
+2. download dbSNP datbase for finemapping
+```shell
+wget "https://zenodo.org/records/15170247/files/dbSNP_b151_GRCh38p7_parquet.tar.gz?download=1" -O dbSNP_b151_GRCh38p7_parquet.tar.gz
+tar -zxvf dbSNP_b151_GRCh38p7_parquet.tar.gz
+rm dbSNP_b151_GRCh38p7_parquet.tar.gz
+```
+
+3. run small test
+```shell
+nextflow run main.nf \
+    -profile singularity \
+    -resume \
+    --studyFile testdata/multi_test.tsv \
+    --rsid_map_file rsid_map/rsid_map_file.tsv \
+    --max_memory 10.GB \
+    --max_time 2.h \
+    --max_cpus 1 \
+    -c <(echo "process { withName: make_pca_covariates { cpus = 1 } }") \
+    --sumstat_sort_cores 1 \
+    --sumstat_sort_mem "4G" \
+    --cis_window 1000000 \
+    --mincisvariant 5 \
+    --n_geno_pcs 3 \
+    --n_pheno_pcs 3 \
+    --run_permutation TRUE \
+    --n_permutations 1000 \
+    --vcf_has_R2_field FALSE \
+    --n_batches 25 \
+    --run_susie TRUE \
+    --write_full_susie FALSE \
+    --outdir testdata/test_results/
+```
+
+4. run with eQTL Catalogue settings
+```shell
+nextflow run main.nf \
+    -profile singularity \
+    -resume \
+    --studyFile testdata/multi_test.tsv \
+    --rsid_map_file rsid_map/rsid_map_file.tsv \
+    --max_memory 10.GB \
+    --max_time 2.h \
+    --max_cpus 1 \
+    -c <(echo "process { withName: make_pca_covariates { cpus = 1 } }") \
+    --cis_window 1000000 \
+    --n_geno_pcs 6 \
+    --n_pheno_pcs 6 \
+    --run_permutation TRUE \
+    --n_batches 400 \
+    --mincisvariant 5 \
+    --n_permutations 1000 \
+    --run_susie TRUE \
+    --write_full_susie FALSE \
+    --outdir testdata/test_results/
+```
 
 # Contributors
 * Nurlan Kerimov
