@@ -27,6 +27,8 @@ process run_susie{
      --eqtlutils null\
      --write_full_susie ${params.write_full_susie}\
      --finemap_by_group_id ${params.finemap_by_group_id}
+    
+    sleep 60
     """
 }
 
@@ -35,9 +37,8 @@ process concatenate_pqs_wo_sorting {
     tag "${qtl_subset}"
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
-
     input:
-    tuple val(qtl_subset), val(files)
+    tuple val(qtl_subset), path(files)
     val(output_postfix)
 
     output:
@@ -45,7 +46,7 @@ process concatenate_pqs_wo_sorting {
 
     script:
     """
-    concatenate_pqs_without_sorting.py -f ${files.join(' ')} -o ${qtl_subset}_${output_postfix}.parquet -m ${task.memory.toMega() / 1024}
+    concatenate_pqs_without_sorting.py -f *.parquet -o ${qtl_subset}_${output_postfix}.parquet -m ${task.memory.toMega() / 1024}
     """
 }
 
@@ -72,10 +73,8 @@ process concatenate_pq_files {
     publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "*credible_sets.parquet"
     publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*cc.parquet"
 
-
-
     input:
-    tuple val(qtl_subset), val(files)
+    tuple val(qtl_subset), path(files)
     val(output_postfix)
 
     output:
@@ -83,7 +82,7 @@ process concatenate_pq_files {
 
     script:
     """
-    concatenate_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}.${output_postfix}.parquet -m ${task.memory.toMega() / 1024}
+    concatenate_pq_files.py -f *.parquet -o ${qtl_subset}.${output_postfix}.parquet -m ${task.memory.toMega() / 1024}
     """
 }
 
