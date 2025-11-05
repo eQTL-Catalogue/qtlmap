@@ -44,7 +44,7 @@ The output directory of the workflow contains the following subdirectories:
 
 Column names of the output files are explained [here](https://github.com/eQTL-Catalogue/eQTL-Catalogue-resources/blob/master/tabix/Columns.md).
 
-# Test usage
+## Test usage
 
 1. download repository
 ```shell
@@ -105,6 +105,68 @@ nextflow run main.nf \
     --run_susie TRUE \
     --write_full_susie FALSE \
     --outdir testdata/test_results/
+```
+
+## Usage tips
+
+### Large `.vcf.gz` files
+
+By default, the pipeline parameters `vcf_set_variant_ids` and `vcf_extract_samples` are set to TRUE. These steps make sure that the `.vcf` file is stardardized for everything to run smoothly. However, they also imply processing and writing almost the whole file several times, which are operations that are hard to predict how much they can last without trying.
+
+Hence, to skip these steps (setting `vcf_set_variant_ids` and `vcf_extract_samples` to FALSE), it is recommended to preprocess the vcf before running the pipeline with these `bcftools` commands. Note that they require a file with the `sample_names.txt` (values in `genotype_id` column in `sample_metadata.tsv` file) to consider:
+
+```shell
+# create chr_map.txt
+cat > chr_map.txt <<'EOF'
+chr1 1
+chr2 2
+chr3 3
+chr4 4
+chr5 5
+chr6 6
+chr7 7
+chr8 8
+chr9 9
+chr10 10
+chr11 11
+chr12 12
+chr13 13
+chr14 14
+chr15 15
+chr16 16
+chr17 17
+chr18 18
+chr19 19
+chr20 20
+chr21 21
+chr22 22
+chrX X
+chrY Y
+chrM M
+EOF
+```
+
+```shell
+# the following:
+# 1 - considers only sample_names
+# 2 - renames chromosomes to remove 'chr'
+# 3 - adds standard ID
+# 4 - adds information for each variant with +fill-tags
+# 5 - filters by allele frequency
+
+THREADS=10
+INPUT_VCF="raw.vcf.gz"
+PREP_VCF="fineprep.vcf.gz"
+SAMPLE_NAMES="sample_names.txt"
+CHR_MAP="chr_map.txt"
+
+nice bcftools view --threads $THREADS --samples-file $SAMPLE_NAMES $INPUT_VCF -Ou | \
+    bcftools annotate --threads $THREADS --rename-chrs $CHR_MAP -Ou | \
+    bcftools annotate --threads $THREADS --set-id 'chr%CHROM\_%POS\_%REF\_%FIRST_ALT' -Ou | \
+    bcftools +fill-tags --threads $THREADS -Ou | \
+    bcftools view --threads $THREADS -i 'AN[0]*MAF[0]>5 & MAF[0]>0.01' -Oz -o $PREP_VCF
+
+nice bcftools index --threads $THREADS --tbi $PREP_VCF
 ```
 
 # Contributors

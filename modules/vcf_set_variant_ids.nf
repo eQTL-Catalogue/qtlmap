@@ -41,6 +41,6 @@ process vcf_set_variant_ids {
     chrM M
     EOF
     
-    bcftools annotate --rename-chrs chr_map.txt $vcf -Ou | bcftools annotate --set-id 'chr%CHROM\\_%POS\\_%REF\\_%FIRST_ALT' -Oz -o ${vcf.simpleName}_renamed.vcf.gz
+    bcftools annotate --threads ${task.cpus} --rename-chrs chr_map.txt $vcf -Ou | bcftools annotate --threads ${task.cpus} --set-id 'chr%CHROM\\_%POS\\_%REF\\_%FIRST_ALT' -Oz -o ${vcf.simpleName}_renamed.vcf.gz
     """
 }
