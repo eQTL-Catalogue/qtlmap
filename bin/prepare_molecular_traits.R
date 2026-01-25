@@ -42,6 +42,10 @@ convertDFtoQTLtools <- function(sample_meta_qtlgroup, count_matrix, phenotype_da
   var_vector = apply(mat, 1, var)
   print(length(var_vector))
   res = res[var_vector > 0,]
+    
+  message("Exclude phenotypes with missing values")
+  all_missing = rowSums(is.na(res)) == dim(res)[2]
+  res = res[!all_missing,]
 
   return(res)
 }
