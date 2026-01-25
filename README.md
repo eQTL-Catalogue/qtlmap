@@ -58,7 +58,7 @@ tar -zxvf dbSNP_b151_GRCh38p7_parquet.tar.gz
 rm dbSNP_b151_GRCh38p7_parquet.tar.gz
 ```
 
-3. run small test
+3. run small test (~15 min)
 ```shell
 nextflow run main.nf \
     -profile singularity \
@@ -67,9 +67,9 @@ nextflow run main.nf \
     --rsid_map_file rsid_map/rsid_map_file.tsv \
     --max_memory 10.GB \
     --max_time 2.h \
-    --max_cpus 1 \
-    -c <(echo "process { withName: make_pca_covariates { cpus = 1 } }") \
-    --sumstat_sort_cores 1 \
+    --max_cpus 10 \
+    -c <(echo "process { withName: make_pca_covariates { cpus = 10 } }") \
+    --sumstat_sort_cores 10 \
     --sumstat_sort_mem "4G" \
     --cis_window 1000000 \
     --mincisvariant 5 \
@@ -175,3 +175,4 @@ nice bcftools index --threads $THREADS --tbi $PREP_VCF
 * Masahiro Kanai
 * Ralf Tambets
 * Krista Freimann
+* Miquel Anglada-Girotto
