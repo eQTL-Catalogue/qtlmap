@@ -1,5 +1,5 @@
 process run_susie{
-    container = 'quay.io/kfkf33/susier:v24.01.1'
+    container = 'quay.io/kfkf33/susier:v24.01.2'
     publishDir "${params.outdir}/susie_batches/${qtl_subset}/cs/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.parquet"
     publishDir "${params.outdir}/susie_batches/${qtl_subset}/lbf/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.lbf_variable.parquet"
     publishDir "${params.outdir}/susie_batches/${qtl_subset}/full/", mode: 'copy', pattern: "${qtl_subset}.${batch_index}_${params.n_batches}.full_susie.parquet"
