@@ -283,7 +283,7 @@ workflow {
           [qtl_group, rsid_map, chromosome, start, end, nominal_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing]}
         generate_sumstat_batches(generate_sumstat_batches_input_ch)
         //Concat nominal batches
-        grouped_sumstats_batches = generate_sumstat_batches.out.map { qtl_subset, file, chr, start, end -> tuple(qtl_subset, file) }.groupTuple(size: params.n_batches)
+        grouped_sumstats_batches = generate_sumstat_batches.out.map { qtl_subset, file, chr, start, end -> qtl_subset, file }.groupTuple(size: params.n_batches)
         concat_pq_all(grouped_sumstats_batches, "all")
     }
     //Run SuSiE
