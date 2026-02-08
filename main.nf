@@ -207,10 +207,12 @@ include { prepare_molecular_traits; compress_bed; make_pca_covariates } from './
 include { extract_samples_from_vcf } from './modules/extract_samples_from_vcf'
 include { run_permutation; merge_permutation_batches; run_nominal;convert_merged_permutation_txt_to_pq} from './modules/map_qtls'
 include { vcf_to_dosage } from './modules/vcf_to_dosage'
-include { run_susie; concatenate_pq_files; merge_cs_sumstats } from './modules/susie'
-include { concatenate_pq_files as concatenate_pq_files_credible_sets } from './modules/susie'
-include { concatenate_pq_files as concatenate_pq_files_cc } from './modules/susie'
-include { concatenate_pqs_wo_sorting; sort_pq_file } from './modules/susie'
+include { run_susie } from './modules/susie'
+include { concatenate_pq_files; merge_cs_sumstats } from './modules/concat_pq'
+include { concatenate_pq_files as concat_pq_credible_sets } from './modules/concat_pq'
+include { concatenate_pq_files as concat_pq_cc } from './modules/concat_pq'
+include { concatenate_pq_files as concat_pq_all } from './modules/concat_pq'
+include { concatenate_pqs_wo_sorting; sort_pq_file } from './modules/concat_pq'
 include { generate_sumstat_batches; convert_extracted_variant_info; convert_tpm; convert_pheno_meta} from './modules/generate_sumstat_batches'
 include { extract_unique_molecular_trait_id; extract_lead_cc_signal } from './modules/extract_cc_signal'
 
@@ -280,6 +282,11 @@ workflow {
           def tpm_missing = nominal_data[8]
           [qtl_group, rsid_map, chromosome, start, end, nominal_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing]}
         generate_sumstat_batches(generate_sumstat_batches_input_ch)
+        //Concat nominal batches
+        if( params.concat_all_pq ){
+          grouped_sumstats_batches = generate_sumstat_batches.out.map { qtl_subset, file, chr, start, end -> [qtl_subset, file] }.groupTuple(size: params.n_batches)
+          concat_pq_all(grouped_sumstats_batches, "all")
+        }
     }
     //Run SuSiE
     if( params.run_permutation & params.run_susie ){
@@ -310,10 +317,10 @@ workflow {
       .set { merged_susie_sumstat_ch }
       merge_cs_sumstats(merged_susie_sumstat_ch)
       grouped_merge_cs_sumstats = merge_cs_sumstats.out.groupTuple(size: params.n_batches)
-      concatenate_pq_files_credible_sets(grouped_merge_cs_sumstats, "credible_sets")
+      concat_pq_credible_sets(grouped_merge_cs_sumstats, "credible_sets")
       grouped_susie_lbf = run_susie.out.lbf_variable_batch.groupTuple( size: params.n_batches)
       extract_lead_cc_signal_grouped_output = extract_lead_cc_signal.out.groupTuple(size: params.n_batches)
-      concatenate_pq_files_cc(extract_lead_cc_signal_grouped_output,"cc")
+      concat_pq_cc(extract_lead_cc_signal_grouped_output,"cc")
       if( params.run_merge_lbf){
         concatenate_pqs_wo_sorting(grouped_susie_lbf, "lbf_variable")
         sort_pq_file(concatenate_pqs_wo_sorting.out)
