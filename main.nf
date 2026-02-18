@@ -161,44 +161,49 @@ log.info """=======================================================
 
 eQTL-Catalogue/qtlmap ${pipelineVersion}"
 ======================================================="""
-def summary = [:]
-summary['Pipeline Name']        = workflow.manifest.name
-summary['Pipeline Version']     = pipelineVersion
-summary['Run Name']             = custom_runName ?: workflow.runName
-summary['Study file']           = params.studyFile
-summary['cis window']           = params.cis_window
-summary['Min # cis variants']   = params.mincisvariant
-summary['VCF has R2 field']     = params.vcf_has_R2_field
-summary['Permutation run']      = params.run_permutation
-summary['# of permutations']    = params.n_permutations
-summary['Nominal run']          = params.run_nominal
-summary['# of batches']         = params.n_batches
-summary['# of phenotype PCs']   = params.n_pheno_pcs
-summary['# of genotype PCs']    = params.n_geno_pcs
-summary['Additonal covariates'] = params.covariates
-summary["Run SuSiE"]            = params.run_susie
-summary["Write full SuSiE"]     = params.write_full_susie
-summary["VCF genotype field"]   = params.vcf_genotype_field
-summary['Max Memory']           = params.max_memory
-summary['Max CPUs']             = params.max_cpus
-summary['Max Time']             = params.max_time
-summary['Output dir']           = params.outdir
-summary['Working dir']          = workflow.workDir
-summary['Container Engine']     = workflow.containerEngine
-summary['Current home']         = "$HOME"
-summary['Current user']         = "$USER"
-summary['Current path']         = "$PWD"
-summary['Working dir']          = workflow.workDir
-summary['Output dir']           = params.outdir
-summary['Script dir']           = workflow.projectDir
-summary['Config Profile']       = workflow.profile
-if(workflow.profile == 'awsbatch'){
-   summary['AWS Region']        = params.awsregion
-   summary['AWS Queue']         = params.awsqueue
+
+def build_wf_summary() {
+    def summary = [:]
+    summary['Pipeline Name']        = workflow.manifest.name
+    summary['Pipeline Version']     = pipelineVersion
+    summary['Run Name']             = custom_runName ?: workflow.runName
+    summary['Study file']           = params.studyFile
+    summary['cis window']           = params.cis_window
+    summary['Min # cis variants']   = params.mincisvariant
+    summary['VCF has R2 field']     = params.vcf_has_R2_field
+    summary['Permutation run']      = params.run_permutation
+    summary['# of permutations']    = params.n_permutations
+    summary['Nominal run']          = params.run_nominal
+    summary['# of batches']         = params.n_batches
+    summary['# of phenotype PCs']   = params.n_pheno_pcs
+    summary['# of genotype PCs']    = params.n_geno_pcs
+    summary['Additonal covariates'] = params.covariates
+    summary["Run SuSiE"]            = params.run_susie
+    summary["Write full SuSiE"]     = params.write_full_susie
+    summary["VCF genotype field"]   = params.vcf_genotype_field
+    summary['Max Memory']           = params.max_memory
+    summary['Max CPUs']             = params.max_cpus
+    summary['Max Time']             = params.max_time
+    summary['Output dir']           = params.outdir
+    summary['Working dir']          = workflow.workDir
+    summary['Container Engine']     = workflow.containerEngine
+    summary['Current home']         = "$HOME"
+    summary['Current user']         = "$USER"
+    summary['Current path']         = "$PWD"
+    summary['Working dir']          = workflow.workDir
+    summary['Output dir']           = params.outdir
+    summary['Script dir']           = workflow.projectDir
+    summary['Config Profile']       = workflow.profile
+    if(workflow.profile == 'awsbatch'){
+       summary['AWS Region']        = params.awsregion
+       summary['AWS Queue']         = params.awsqueue
+    }
+    if(params.email) summary['E-mail Address'] = params.email
+    return summary
 }
-if(params.email) summary['E-mail Address'] = params.email
-log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
-log.info "========================================="
+
+def wf_summary = build_wf_summary()
+log.info wf_summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
 
 include { vcf_set_variant_ids } from './modules/vcf_set_variant_ids'
 include { extract_variant_info } from './modules/extract_variant_info'
@@ -401,6 +406,38 @@ workflow.onComplete {
     output_hf.withWriter { w -> w << email_html }
     def output_tf = new File( output_d, "pipeline_report.txt" )
     output_tf.withWriter { w -> w << email_txt }
+
+    def status_str =
+        workflow.success ? 'SUCCESS' :
+        (workflow.errorReport ? 'FAILED' : 'CANCELLED')
+
+    wf_summary['status'] = status_str
+    wf_summary['start_time']     = workflow.start?.toString()
+    wf_summary['end_time']       = new Date().toString()
+    wf_summary['exit_status']    = workflow.exitStatus
+    wf_summary['error_message']  = workflow.errorMessage?.toString()
+    wf_summary['error_report']   = workflow.errorReport?.toString()
+
+    def manifest_file = file("${params.outdir}/pipeline_info/qtlmap_run_manifest.json")
+    manifest_file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(wf_summary))
+
+    // save main config
+    def src = file("${workflow.projectDir}/nextflow.config")
+    if (src.exists()) {
+        file("${params.outdir}/pipeline_info/nextflow.config").text = src.text
+    }
+
+    // save used profiles configs
+    def profiles = workflow.profile?.toString()?.split(',') ?: []
+    profiles.collect { it.trim() }
+        .findAll { it }
+        .each { prof ->
+            def prof_cfg = file("${workflow.projectDir}/conf/${prof}.config")
+            if (prof_cfg.exists()) {
+                file("${params.outdir}/pipeline_info/${prof}.config").text = prof_cfg.text
+            }
+        }
+
 
     log.info "[eQTL-Catalogue/qtlmap] Pipeline Complete"
 
