@@ -52,6 +52,7 @@ def helpMessage() {
 
     Fine mapping (SuSiE)
       --run_susie                   Perform eQTL fine mapping with SuSiE
+      --finemap_by_group_id         If 'true' then only lead phenotype per group from the permutation run will be finemapped
       --vcf_genotype_field          Field in the VCF file that is used to construct the dosage matrix. Valid options are GT and DS (default: GT). 
       --write_full_susie            If 'true' then full SuSiE output will not be written to disk (default: true). 
                                     Setting this to 'false' will apply credible set connected component based filtering to SuSiE results. 
@@ -141,16 +142,6 @@ Channel.fromPath(params.rsid_map_file)
 // Batch channel
 batch_ch = Channel.of(1..params.n_batches)
 
-// Fetch the pipeline version from Git tags
-def pipelineVersion = "v0.0.0" // Default version in case git command fails
-
-// Try to fetch the version from Git
-try {
-    pipelineVersion = "git describe --tags".execute().text.trim()
-} catch (Exception e) {
-    log.warn "Could not retrieve the pipeline version from Git. Using default version $pipelineVersion."
-}
-
 // Header log info
 log.info """=======================================================
                                           ,--./,-.
@@ -159,10 +150,19 @@ log.info """=======================================================
     | \\| |       \\__, \\__/ |  \\ |___     \\`-._,-`-,
                                           `._,._,\'
 
-eQTL-Catalogue/qtlmap ${pipelineVersion}"
+eQTL-Catalogue/qtlmap
 ======================================================="""
 
 def build_wf_summary() {
+    // Fetch the pipeline version from Git tags
+    def pipelineVersion = "v0.0.0" // Default version in case git command fails
+
+    // Try to fetch the version from Git
+    try {
+        pipelineVersion = "git describe --tags".execute().text.trim()
+    } catch (Exception e) {
+        log.warn "Could not retrieve the pipeline version from Git. Using default version $pipelineVersion."
+    }
     def summary = [:]
     summary['Pipeline Name']        = workflow.manifest.name
     summary['Pipeline Version']     = pipelineVersion
@@ -177,10 +177,14 @@ def build_wf_summary() {
     summary['# of batches']         = params.n_batches
     summary['# of phenotype PCs']   = params.n_pheno_pcs
     summary['# of genotype PCs']    = params.n_geno_pcs
-    summary['Additonal covariates'] = params.covariates
+    summary['Additional covariates'] = params.covariates
     summary["Run SuSiE"]            = params.run_susie
     summary["Write full SuSiE"]     = params.write_full_susie
+    summary["CS size threshold"]    = params.cs_size_threshold
+    summary["Finemap lead group phenotype only"]    = params.finemap_by_group_id
     summary["VCF genotype field"]   = params.vcf_genotype_field
+    summary["Run merge lbf"]        = params.run_merge_lbf
+    summary["Concat pq files from nominal run"]        = params.concat_all_pq
     summary['Max Memory']           = params.max_memory
     summary['Max CPUs']             = params.max_cpus
     summary['Max Time']             = params.max_time
@@ -221,7 +225,6 @@ include { concatenate_pqs_wo_sorting; sort_pq_file } from './modules/concat_pq'
 include { generate_sumstat_batches; convert_extracted_variant_info; convert_tpm; convert_pheno_meta} from './modules/generate_sumstat_batches'
 include { extract_unique_molecular_trait_id; extract_lead_cc_signal } from './modules/extract_cc_signal'
 
-
 workflow {
 
     // Prepare input data for QTL mapping
@@ -243,7 +246,7 @@ workflow {
       .join(extract_samples_from_vcf.out.vcf)
       .join(extract_samples_from_vcf.out.index)
       .join(make_pca_covariates.out)
-    
+
     //Permutation pass
     if( params.run_permutation ){
       run_permutation(batch_ch, qtlmap_input_ch)
@@ -253,7 +256,7 @@ workflow {
     //Nominal pass
     if( params.run_nominal ){
       run_nominal(batch_ch, qtlmap_input_ch)
-        extract_variant_info2(extract_samples_from_vcf.out.vcf) 
+        extract_variant_info2(extract_samples_from_vcf.out.vcf)
         run_nominal_output= run_nominal.out.map{qtl_group,nominal_file, chromosome,start_pos,end_pos ->[qtl_group,[nominal_file,chromosome,start_pos,end_pos]]}
         nominal_qtl_subset_grouped = run_nominal_output.groupTuple(size: params.n_batches)
         all_nominal_qtl_subset_grouped = nominal_qtl_subset_grouped.map{qtl_group,nominal_run_data ->[qtl_group,nominal_run_data.flatten()]}
@@ -261,8 +264,8 @@ workflow {
         convert_tpm(tpm_file_ch)
         convert_pheno_meta(prepare_molecular_traits.out.pheno_meta)
         all_nominal_qtl_subset_info = all_nominal_qtl_subset_grouped
-          .join(convert_extracted_variant_info.out) 
-          .join(convert_pheno_meta.out) 
+          .join(convert_extracted_variant_info.out)
+          .join(convert_pheno_meta.out)
           .join(convert_tpm.out)
         nominal_qtl_subset_info_correct_format_ch = all_nominal_qtl_subset_info
             .flatMap { qtl_group, nominal_run_files_regions, extracted_variant_info, pheno_meta, tpm_file, tpm_missing ->
@@ -273,16 +276,16 @@ workflow {
               def chr = nominal_run_file_region_list[1]
               def start = nominal_run_file_region_list[2]
               def end = nominal_run_file_region_list[3]
-              [chr, start, end, qtl_group, nominal_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing]}        
-        generate_sumstat_batches_input_ch = chr_rsid_map_ch.cross(nominal_qtl_subset_info_correct_format_ch).map { rsid_data, nominal_data -> 
-          def chromosome = rsid_data[0]  
-          def rsid_map = rsid_data[1]    
-          def start = nominal_data[1]    
-          def end = nominal_data[2]      
-          def qtl_group = nominal_data[3] 
-          def nominal_file = nominal_data[4]  
-          def extracted_variant_info = nominal_data[5]  
-          def pheno_meta = nominal_data[6]  
+              [chr, start, end, qtl_group, nominal_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing]}
+        generate_sumstat_batches_input_ch = chr_rsid_map_ch.cross(nominal_qtl_subset_info_correct_format_ch).map { rsid_data, nominal_data ->
+          def chromosome = rsid_data[0]
+          def rsid_map = rsid_data[1]
+          def start = nominal_data[1]
+          def end = nominal_data[2]
+          def qtl_group = nominal_data[3]
+          def nominal_file = nominal_data[4]
+          def extracted_variant_info = nominal_data[5]
+          def pheno_meta = nominal_data[6]
           def tpm_file = nominal_data[7]
           def tpm_missing = nominal_data[8]
           [qtl_group, rsid_map, chromosome, start, end, nominal_file, extracted_variant_info, pheno_meta, tpm_file, tpm_missing]}
@@ -315,7 +318,7 @@ workflow {
       }
       extract_lead_cc_signal(extract_lead_cc_signal_ch)
       concatenate_pq_files.out
-      .combine(generate_sumstat_batches.out, by: 0)  
+      .combine(generate_sumstat_batches.out, by: 0)
       .map { qtl_subset, merged_parquet_file, sumstat_batch, chrom, start_pos, end_pos ->
         return tuple(qtl_subset, sumstat_batch, chrom, start_pos, end_pos, merged_parquet_file)
           }
@@ -333,9 +336,6 @@ workflow {
     }
 }
 
-/*
- * Completion e-mail notification
- */
 workflow.onComplete {
 
     // Set up the e-mail variables
@@ -354,7 +354,7 @@ workflow.onComplete {
     email_fields['errorReport'] = (workflow.errorReport ?: 'None')
     email_fields['commandLine'] = workflow.commandLine
     email_fields['projectDir'] = workflow.projectDir
-    email_fields['summary'] = summary
+    email_fields['summary'] = wf_summary
     email_fields['summary']['Date Started'] = workflow.start
     email_fields['summary']['Date Completed'] = workflow.complete
     email_fields['summary']['Pipeline script file path'] = workflow.scriptFile
@@ -398,28 +398,14 @@ workflow.onComplete {
     }
 
     // Write summary e-mail HTML to a file
-    def output_d = new File( "${params.outdir}/Documentation/${params.name}" )
+    def output_d = new File( "${params.outdir}/pipeline_info/" )
     if( !output_d.exists() ) {
       output_d.mkdirs()
     }
-    def output_hf = new File( output_d, "pipeline_report.html" )
+    def output_hf = new File( output_d, "run_summary.html" )
     output_hf.withWriter { w -> w << email_html }
-    def output_tf = new File( output_d, "pipeline_report.txt" )
+    def output_tf = new File( output_d, "run_summary.txt" )
     output_tf.withWriter { w -> w << email_txt }
-
-    def status_str =
-        workflow.success ? 'SUCCESS' :
-        (workflow.errorReport ? 'FAILED' : 'CANCELLED')
-
-    wf_summary['status'] = status_str
-    wf_summary['start_time']     = workflow.start?.toString()
-    wf_summary['end_time']       = new Date().toString()
-    wf_summary['exit_status']    = workflow.exitStatus
-    wf_summary['error_message']  = workflow.errorMessage?.toString()
-    wf_summary['error_report']   = workflow.errorReport?.toString()
-
-    def manifest_file = file("${params.outdir}/pipeline_info/qtlmap_run_manifest.json")
-    manifest_file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(wf_summary))
 
     // save main config
     def src = file("${workflow.projectDir}/nextflow.config")
