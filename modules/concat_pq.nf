@@ -1,10 +1,11 @@
 process concatenate_pqs_wo_sorting {
     tag "${qtl_subset}"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
 
     input:
-    tuple val(qtl_subset), val(files)
+    tuple val(qtl_subset), path(files)
     val(output_postfix)
 
     output:
@@ -18,6 +19,7 @@ process concatenate_pqs_wo_sorting {
 
 process sort_pq_file {
     tag "${qtl_subset}"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
     publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "${qtl_subset}.${output_postfix}.parquet"
 
@@ -35,13 +37,12 @@ process sort_pq_file {
 
 process concatenate_pq_files {
     tag "${qtl_subset}"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
-    publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "*credible_sets.parquet"
-    publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*cc.parquet"
-    publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*all.parquet"
+    publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "*lbf_variable.parquet"
 
     input:
-    tuple val(qtl_subset), val(files)
+    tuple val(qtl_subset), path(files)
     val(output_postfix)
 
     output:
@@ -49,12 +50,34 @@ process concatenate_pq_files {
 
     script:
     """
-    concatenate_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}.${output_postfix}.parquet -m ${task.memory.toMega() / 1024}
+    concatenate_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}.${output_postfix}.parquet -m ${task.memory.toMega()} -t ${task.cpus}
+    """
+}
+
+process concatenate_overlapping_pq_files {
+    tag "${qtl_subset}"
+    label 'duckdb_tools'
+    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "*credible_sets.parquet"
+    publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*all.parquet"
+    publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*cc.parquet"
+
+    input:
+    tuple val(qtl_subset), path(files)
+    val(output_postfix)
+
+    output:
+    tuple val(qtl_subset), path("${qtl_subset}.${output_postfix}.parquet")
+
+    script:
+    """
+    concatenate_overlapping_pq_files.py -f ${files.join(' ')} -o ${qtl_subset}.${output_postfix}.parquet -m ${task.memory.toMega()} -t ${task.cpus}
     """
 }
 
 process merge_cs_sumstats{
     tag "${qtl_subset}"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
