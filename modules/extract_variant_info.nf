@@ -1,6 +1,7 @@
 // Extract variant information from VCF
 process extract_variant_info {
     tag "${qtl_subset}"
+    label 'qtlmap_tools'
     publishDir "${params.outdir}/varinfo", mode: 'copy'
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 

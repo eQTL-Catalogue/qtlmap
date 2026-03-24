@@ -1,6 +1,7 @@
 process generate_sumstat_batches {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats_batches/${qtl_subset}/all/", mode: 'copy', pattern: "${qtl_subset}_chr*.parquet"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
@@ -30,6 +31,7 @@ process generate_sumstat_batches {
 
 process convert_extracted_variant_info {
     tag "${qtl_subset}"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
@@ -51,6 +53,7 @@ process convert_extracted_variant_info {
 
 process convert_tpm {
     tag "${qtl_subset}"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
@@ -79,6 +82,7 @@ process convert_tpm {
 
 process convert_pheno_meta {
     tag "${qtl_subset}"
+    label 'duckdb_tools'
     container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:

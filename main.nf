@@ -209,10 +209,10 @@ include { run_permutation; merge_permutation_batches; run_nominal;convert_merged
 include { vcf_to_dosage } from './modules/vcf_to_dosage'
 include { run_susie } from './modules/susie'
 include { concatenate_pq_files; merge_cs_sumstats } from './modules/concat_pq'
-include { concatenate_pq_files as concat_pq_credible_sets } from './modules/concat_pq'
-include { concatenate_pq_files as concat_pq_cc } from './modules/concat_pq'
-include { concatenate_pq_files as concat_pq_all } from './modules/concat_pq'
-include { concatenate_pqs_wo_sorting; sort_pq_file } from './modules/concat_pq'
+include { concatenate_overlapping_pq_files as concat_pq_credible_sets } from './modules/concat_pq'
+include { concatenate_overlapping_pq_files as concat_pq_cc } from './modules/concat_pq'
+include { concatenate_overlapping_pq_files as concat_pq_all } from './modules/concat_pq'
+include { concatenate_pq_files as concatenate_lbf } from './modules/concat_pq'
 include { generate_sumstat_batches; convert_extracted_variant_info; convert_tpm; convert_pheno_meta} from './modules/generate_sumstat_batches'
 include { extract_unique_molecular_trait_id; extract_lead_cc_signal } from './modules/extract_cc_signal'
 
@@ -322,8 +322,7 @@ workflow {
       extract_lead_cc_signal_grouped_output = extract_lead_cc_signal.out.groupTuple(size: params.n_batches)
       concat_pq_cc(extract_lead_cc_signal_grouped_output,"cc")
       if( params.run_merge_lbf){
-        concatenate_pqs_wo_sorting(grouped_susie_lbf, "lbf_variable")
-        sort_pq_file(concatenate_pqs_wo_sorting.out)
+        concatenate_lbf(grouped_susie_lbf, "lbf_variable")
       }
     }
 }

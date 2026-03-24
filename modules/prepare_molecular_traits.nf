@@ -6,6 +6,7 @@
 process prepare_molecular_traits {
     tag "${qtl_subset}"
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    label 'qtlmap_tools'
 
     input:
     tuple val(qtl_subset), file(expression_matrix), file(phenotype_metadata), file(sample_metadata), file(vcf_variant_info)
@@ -38,6 +39,7 @@ process prepare_molecular_traits {
 process compress_bed {
     tag "${qtl_subset}"
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    label 'qtlmap_tools'
 
     input:
     tuple val(qtl_subset), file(bed_file)
@@ -61,6 +63,7 @@ process make_pca_covariates {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/PCA/${qtl_subset}", mode: 'copy'
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    label 'qtlmap_tools'
 
     input:
     tuple val(qtl_subset), file(phenotype_cov), file(vcf)

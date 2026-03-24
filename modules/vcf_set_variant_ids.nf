@@ -1,6 +1,7 @@
 process vcf_set_variant_ids {
     tag "${qtl_subset}"
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    label 'qtlmap_tools'
 
     input:
     tuple val(qtl_subset), file(vcf)

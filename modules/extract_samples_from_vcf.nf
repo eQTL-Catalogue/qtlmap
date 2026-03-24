@@ -1,6 +1,7 @@
 
 process extract_samples_from_vcf {
     tag "${qtl_subset}"
+    label 'qtlmap_tools'
     container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
