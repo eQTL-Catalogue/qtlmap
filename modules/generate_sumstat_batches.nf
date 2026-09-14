@@ -1,7 +1,7 @@
 process generate_sumstat_batches {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats_batches/${qtl_subset}/all/", mode: 'copy', pattern: "${qtl_subset}_chr*.parquet"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
     tuple val(qtl_subset), path(rsid_map), val(chr),val(start_pos),val(end_pos), path(summ_stats_batch),path(var_info), path(phenotype_metadata), path(median_tpm), val(tpm_missing)
@@ -30,7 +30,7 @@ process generate_sumstat_batches {
 
 process convert_extracted_variant_info {
     tag "${qtl_subset}"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
     tuple val(qtl_subset), path(variant_info)
@@ -51,7 +51,7 @@ process convert_extracted_variant_info {
 
 process convert_tpm {
     tag "${qtl_subset}"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
     tuple val(qtl_subset), path(tpm_file), val(tpm_missing)
@@ -79,7 +79,7 @@ process convert_tpm {
 
 process convert_pheno_meta {
     tag "${qtl_subset}"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
     tuple val(qtl_subset), path(phenotype_metadata)

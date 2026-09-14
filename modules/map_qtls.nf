@@ -3,7 +3,7 @@
  */
 process run_permutation {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-    container = 'quay.io/eqtlcatalogue/qtltools:v22.03.1'
+    container 'quay.io/eqtlcatalogue/qtltools:v22.03.1'
 
     input:
     each batch_index
@@ -23,7 +23,7 @@ process run_permutation {
  */
 process merge_permutation_batches {
     tag "${qtl_subset}"
-    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    container 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
 
     input:
     tuple val(qtl_subset), file(batch_file_names)
@@ -41,7 +41,7 @@ process merge_permutation_batches {
 process convert_merged_permutation_txt_to_pq {
     tag "${qtl_subset}"
     publishDir "${params.outdir}/sumstats/${qtl_subset}", mode: 'copy'
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container 'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
     tuple val(qtl_subset), path(input_file)
@@ -65,7 +65,7 @@ process convert_merged_permutation_txt_to_pq {
  */
 process run_nominal {
     tag "${qtl_subset} - ${batch_index}/${params.n_batches}"
-    container = 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
+    container 'quay.io/eqtlcatalogue/qtlmap:v20.05.1'
     
     input:
     each batch_index

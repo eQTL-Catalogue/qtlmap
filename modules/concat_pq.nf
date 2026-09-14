@@ -1,6 +1,6 @@
 process concatenate_pqs_wo_sorting {
     tag "${qtl_subset}"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container  'quay.io/kfkf33/duckdb_env:v24.01.1'
 
 
     input:
@@ -18,7 +18,7 @@ process concatenate_pqs_wo_sorting {
 
 process sort_pq_file {
     tag "${qtl_subset}"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container  'quay.io/kfkf33/duckdb_env:v24.01.1'
     publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "${qtl_subset}.${output_postfix}.parquet"
 
     input:
@@ -35,7 +35,7 @@ process sort_pq_file {
 
 process concatenate_pq_files {
     tag "${qtl_subset}"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container  'quay.io/kfkf33/duckdb_env:v24.01.1'
     publishDir "${params.outdir}/susie/${qtl_subset}/", mode: 'copy', pattern: "*credible_sets.parquet"
     publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*cc.parquet"
     publishDir "${params.outdir}/sumstats/${qtl_subset}/", mode: 'copy', pattern: "*all.parquet"
@@ -55,7 +55,7 @@ process concatenate_pq_files {
 
 process merge_cs_sumstats{
     tag "${qtl_subset}"
-    container = 'quay.io/kfkf33/duckdb_env:v24.01.1'
+    container  'quay.io/kfkf33/duckdb_env:v24.01.1'
 
     input:
     tuple val(qtl_subset), path(sumstat_batch), val(chrom), val(start_pos), val(end_pos),path(merged_susie_file)

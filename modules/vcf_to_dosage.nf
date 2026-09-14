@@ -1,5 +1,5 @@
 process vcf_to_dosage{
-    container = 'quay.io/eqtlcatalogue/susie-finemapping:v20.08.1'
+    container 'quay.io/eqtlcatalogue/susie-finemapping:v20.08.1'
 
     input:
     tuple val(qtl_subset), file(vcf)
