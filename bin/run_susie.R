@@ -127,7 +127,7 @@ finemapPhenotype <- function(phenotype_id, se, genotype_file, covariates, cis_di
   #Import genotype matrix
   genotype_matrix = eQTLUtils::extractGenotypeMatrixFromDosage(
     chr = gene_meta$chromosome, 
-    start = gene_meta$phenotype_pos - cis_distance, 
+    start = max(1L, gene_meta$phenotype_pos - cis_distance), 
     end = gene_meta$phenotype_pos + cis_distance, 
     dosage_file = genotype_file)
 
@@ -484,7 +484,7 @@ if(all(!is.na(selected_phenotypes)) && length(selected_phenotypes) > 0){
   
   #Define fine-mapped regions
   region_df = dplyr::transmute(phenotype_list, phenotype_id, region = paste0("chr", chromosome, ":", 
-                                                                                        phenotype_pos - cis_distance, "-",
+                                                                                        pmax(1L, phenotype_pos - cis_distance), "-",
                                                                                         phenotype_pos + cis_distance))
   #Extract credible sets from finemapping results
   message(" # Extract credible sets from finemapping results")
