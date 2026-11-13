@@ -88,7 +88,7 @@ Use this to specify the location of the text file describing the locations of al
 1. _**pheno_meta**_ - specifies the location of your phenotype metadata file (.tsv). Should contain at least the following columns: **_phenotype_id, chromosome, phenotype_pos, strand_**. The _**phenotype_pos**_ column is used to define the _cis_ window around each phenotype. 
 1. _**sample_meta**_ - specifies the location of your sample metadata file (.tsv). Should contain at least the following columns: **_sample_id, genotype_id, qtl_group_**
 1. _**vcf**_ - Genotype file used for QTL analysis. Sample ids of the VCF file should match the genotype_id column in the _**sample_meta**_ file. 
-1. _**tpm_file**_ - specifies the median TPM value of each phenotype in each _**qtl_group**_ (from _**sample_meta**_ file). These TPM values are not used in QTL analysis and are only merged into final summary statistics file as gene annotations. If the _**tpm_file**_ is not available, then this can be replaced by a dummy placeholder value 'null.txt'.
+1. _**tpm_file**_ - specifies the median TPM value of each phenotype in each _**qtl_group**_ (from _**sample_meta**_ file). These TPM values are not used in QTL analysis and are only merged into final summary statistics file as gene annotations.
 
 See the section about [input files](inputs_expl.md) for more details how the columns in different files related to each other. Example studyFile is available [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata/multi_test.tsv) and example input data can be seen [here](https://github.com/eQTL-Catalogue/qtlmap/blob/master/testdata).
 
