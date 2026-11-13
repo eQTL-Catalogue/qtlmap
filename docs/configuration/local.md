@@ -24,3 +24,6 @@ git clone https://github.com/eQTL-Catalogue/qtlmap.git
 cd qtlmap
 nextflow run main.nf -profile singularity,test
 ```
+
+## rsid map files
+The rsid map files can be downloaded from [here](https://zenodo.org/records/15170247).
